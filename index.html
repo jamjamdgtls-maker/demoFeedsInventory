@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgroFeed POS — Dashboard</title>
+  <link rel="stylesheet" href="shared/styles.css" />
+  <style>
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .module-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 26px 24px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow .2s, transform .2s, border-color .2s;
+    }
+    .module-card:hover {
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
+      border-color: var(--green-300);
+    }
+    .module-card__icon {
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+    .module-card__icon--green  { background: var(--green-100); }
+    .module-card__icon--amber  { background: var(--amber-100); }
+    .module-card__icon--blue   { background: #dbeafe; }
+    .module-card__icon--purple { background: #ede9fe; }
+    .module-card__icon--red    { background: var(--red-100); }
+    .module-card__icon--teal   { background: #ccfbf1; }
+    .module-card__info { flex: 1; }
+    .module-card__name {
+      font-family: var(--font-head);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--slate-900);
+      margin-bottom: 4px;
+    }
+    .module-card__desc { font-size: .83rem; color: var(--slate-500); line-height: 1.5; }
+    .module-card__arrow {
+      color: var(--slate-300);
+      font-size: 1.1rem;
+      align-self: center;
+      transition: transform .15s, color .15s;
+    }
+    .module-card:hover .module-card__arrow { transform: translateX(4px); color: var(--green-500); }
+
+    .welcome-banner {
+      background: linear-gradient(135deg, var(--green-800) 0%, var(--green-600) 100%);
+      border-radius: var(--radius-xl);
+      padding: 28px 32px;
+      color: var(--white);
+      margin-bottom: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+    .welcome-banner::after {
+      content: '🌾';
+      position: absolute;
+      right: 28px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 5rem;
+      opacity: .15;
+    }
+    .welcome-banner h1 {
+      font-family: var(--font-head);
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+    .welcome-banner p { opacity: .8; font-size: .9rem; }
+    .welcome-stats {
+      display: flex;
+      gap: 28px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .welcome-stat {}
+    .welcome-stat__val {
+      font-family: var(--font-head);
+      font-size: 1.6rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .welcome-stat__lbl {
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      opacity: .7;
+      margin-top: 3px;
+    }
+    .section-title {
+      font-family: var(--font-head);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--slate-700);
+      margin-bottom: 16px;
+      letter-spacing: -0.01em;
+    }
+    .backup-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar__brand">
+    <div class="sidebar__brand-icon">🌾</div>
+    <div class="sidebar__brand-name">AgroFeed POS</div>
+    <div class="sidebar__brand-sub">Feeds Store System</div>
+  </div>
+  <div class="sidebar__nav">
+    <div class="sidebar__section-label">Main</div>
+    <a href="index.html" class="active"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="modules/pos/pos.html"><span class="nav-icon">🛒</span> Point of Sale</a>
+    <div class="sidebar__section-label">Management</div>
+    <a href="modules/products/products.html"><span class="nav-icon">📦</span> Products</a>
+    <a href="modules/suppliers/suppliers.html"><span class="nav-icon">🏭</span> Suppliers</a>
+    <a href="modules/stock-in/stock-in.html"><span class="nav-icon">📥</span> Stock In</a>
+    <a href="modules/inventory/inventory.html"><span class="nav-icon">🗂️</span> Inventory</a>
+    <div class="sidebar__section-label">Reports</div>
+    <a href="modules/sales/sales.html"><span class="nav-icon">📊</span> Sales</a>
+  </div>
+  <div class="sidebar__footer">v1.0 · AgroFeed POS</div>
+</nav>
+
+<!-- Main -->
+<div class="main">
+  <header class="page-header">
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div>
+      <div class="page-header__title">Dashboard</div>
+      <div class="page-header__sub">Welcome back — <span id="today-date"></span></div>
+    </div>
+    <a href="modules/pos/pos.html" class="btn btn--primary">🛒 Open POS</a>
+  </header>
+
+  <div class="page-content">
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+      <h1>AgroFeed POS System</h1>
+      <p>Manage your animal feeds store with ease.</p>
+      <div class="welcome-stats">
+        <div class="welcome-stat">
+          <div class="welcome-stat__val" id="stat-products">—</div>
+          <div class="welcome-stat__lbl">Products</div>
+        </div>
+        <div class="welcome-stat">
+          <div class="welcome-stat__val" id="stat-suppliers">—</div>
+          <div class="welcome-stat__lbl">Suppliers</div>
+        </div>
+        <div class="welcome-stat">
+          <div class="welcome-stat__val" id="stat-inventory">—</div>
+          <div class="welcome-stat__lbl">Stock Batches</div>
+        </div>
+        <div class="welcome-stat">
+          <div class="welcome-stat__val" id="stat-sales-today">—</div>
+          <div class="welcome-stat__lbl">Sales Today</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module Links -->
+    <div class="section-title">Quick Access</div>
+    <div class="dashboard-grid" style="margin-bottom:28px;">
+      <a href="modules/pos/pos.html" class="module-card">
+        <div class="module-card__icon module-card__icon--green">🛒</div>
+        <div class="module-card__info">
+          <div class="module-card__name">Point of Sale</div>
+          <div class="module-card__desc">Sell products, manage cart, and process checkouts with FIFO inventory deduction.</div>
+        </div>
+        <span class="module-card__arrow">›</span>
+      </a>
+      <a href="modules/products/products.html" class="module-card">
+        <div class="module-card__icon module-card__icon--blue">📦</div>
+        <div class="module-card__info">
+          <div class="module-card__name">Products</div>
+          <div class="module-card__desc">Add, edit, and manage your product catalog with selling prices.</div>
+        </div>
+        <span class="module-card__arrow">›</span>
+      </a>
+      <a href="modules/suppliers/suppliers.html" class="module-card">
+        <div class="module-card__icon module-card__icon--purple">🏭</div>
+        <div class="module-card__info">
+          <div class="module-card__name">Suppliers</div>
+          <div class="module-card__desc">Manage your supplier directory for multi-source inventory tracking.</div>
+        </div>
+        <span class="module-card__arrow">›</span>
+      </a>
+      <a href="modules/stock-in/stock-in.html" class="module-card">
+        <div class="module-card__icon module-card__icon--amber">📥</div>
+        <div class="module-card__info">
+          <div class="module-card__name">Stock In</div>
+          <div class="module-card__desc">Receive inventory by batch. Each delivery is tracked separately for FIFO accuracy.</div>
+        </div>
+        <span class="module-card__arrow">›</span>
+      </a>
+      <a href="modules/inventory/inventory.html" class="module-card">
+        <div class="module-card__icon module-card__icon--teal">🗂️</div>
+        <div class="module-card__info">
+          <div class="module-card__name">Inventory</div>
+          <div class="module-card__desc">View all stock batches filtered by product or supplier. Monitor low stock.</div>
+        </div>
+        <span class="module-card__arrow">›</span>
+      </a>
+      <a href="modules/sales/sales.html" class="module-card">
+        <div class="module-card__icon module-card__icon--red">📊</div>
+        <div class="module-card__info">
+          <div class="module-card__name">Sales</div>
+          <div class="module-card__desc">Review sales history with per-item supplier detail and profit calculations.</div>
+        </div>
+        <span class="module-card__arrow">›</span>
+      </a>
+    </div>
+
+    <!-- Backup & Restore -->
+    <div class="section-title">Data Backup</div>
+    <div class="card">
+      <div class="card__body">
+        <p class="text-muted" style="margin-bottom:14px;">Export your data as JSON backup or restore from a previous backup file.</p>
+        <div class="backup-bar">
+          <button class="btn btn--secondary" id="btn-export">⬇️ Export Backup</button>
+          <label class="btn btn--secondary" style="cursor:pointer;">
+            ⬆️ Import Backup
+            <input type="file" id="import-file" accept=".json" style="display:none;" />
+          </label>
+          <button class="btn btn--danger btn--sm" id="btn-reset">🔄 Reset Demo Data</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="shared/db.js"></script>
+<script src="shared/utils.js"></script>
+<script>
+  DB.seedIfEmpty();
+
+  // Today's date
+  document.getElementById('today-date').textContent = Utils.formatDate(new Date().toISOString());
+
+  // Stats
+  function loadStats() {
+    const products  = DB.getData('products');
+    const suppliers = DB.getData('suppliers');
+    const inventory = DB.getData('inventory');
+    const sales     = DB.getData('sales');
+    const today     = Utils.todayISO();
+    const salesToday = sales.filter(s => s.date && s.date.startsWith(today));
+
+    document.getElementById('stat-products').textContent  = products.length;
+    document.getElementById('stat-suppliers').textContent = suppliers.length;
+    document.getElementById('stat-inventory').textContent = inventory.length;
+    document.getElementById('stat-sales-today').textContent = salesToday.length;
+  }
+  loadStats();
+
+  // Hamburger menu
+  document.getElementById('hamburger').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('open');
+  });
+
+  // Export backup
+  document.getElementById('btn-export').addEventListener('click', () => {
+    const json = DB.exportBackup();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = `agrofeed-backup-${Utils.todayISO()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    Utils.showToast('Backup exported!');
+  });
+
+  // Import backup
+  document.getElementById('import-file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        DB.importBackup(ev.target.result);
+        Utils.showToast('Backup imported successfully!');
+        loadStats();
+      } catch {
+        Utils.showToast('Invalid backup file.', 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  // Reset demo data
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    if (!Utils.confirm('Reset all data to demo defaults? This cannot be undone.')) return;
+    ['products','suppliers','inventory','sales'].forEach(k => localStorage.removeItem(k));
+    DB.seedIfEmpty();
+    loadStats();
+    Utils.showToast('Demo data restored.');
+  });
+</script>
+</body>
+</html>
