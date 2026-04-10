@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgroFeed POS — Inventory</title>
+  <link rel="stylesheet" href="../../shared/styles.css" />
+  <style>
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .filter-bar .form-group { margin-bottom: 0; min-width: 160px; }
+    .inv-row--low     td { background: #fffbeb; }
+    .inv-row--depleted td { opacity: .55; }
+    @media (max-width: 600px) {
+      .filter-bar .form-group { min-width: 140px; flex: 1; }
+    }
+    /* Print overrides */
+    @media print {
+      .filter-bar, .no-print { display: none !important; }
+      .page-content { padding: 0 !important; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar__brand">
+    <div class="sidebar__brand-icon">🌾</div>
+    <div class="sidebar__brand-name">AgroFeed POS</div>
+    <div class="sidebar__brand-sub">Feeds Store System</div>
+  </div>
+  <div class="sidebar__nav">
+    <div class="sidebar__section-label">Main</div>
+    <a href="../../index.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="../pos/pos.html"><span class="nav-icon">🛒</span> Point of Sale</a>
+    <div class="sidebar__section-label">Management</div>
+    <a href="../products/products.html"><span class="nav-icon">📦</span> Products</a>
+    <a href="../suppliers/suppliers.html"><span class="nav-icon">🏭</span> Suppliers</a>
+    <a href="../stock-in/stock-in.html"><span class="nav-icon">📥</span> Stock In</a>
+    <a href="inventory.html" class="active"><span class="nav-icon">🗂️</span> Inventory</a>
+    <div class="sidebar__section-label">Reports</div>
+    <a href="../sales/sales.html"><span class="nav-icon">📊</span> Sales</a>
+  </div>
+  <div class="sidebar__footer">v2.0 · AgroFeed POS</div>
+</nav>
+
+<div class="main">
+  <header class="page-header">
+    <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+    <div>
+      <div class="page-header__title">🗂️ Inventory</div>
+      <div class="page-header__sub">All stock batches with cost tracking</div>
+    </div>
+    <button class="btn btn--secondary no-print" id="btn-print">🖨️ Print Report</button>
+  </header>
+
+  <div class="page-content">
+    <div class="stats-grid" id="inventory-stats"></div>
+
+    <!-- Avg / Latest Cost Summary -->
+    <div class="card" style="margin-bottom:20px;" id="cost-summary-card">
+      <div class="card__header"><span class="card__title">Cost Summary by Product</span></div>
+      <div class="table-wrap">
+        <table id="cost-summary-table">
+          <thead>
+            <tr><th>Product</th><th>Total Stock</th><th>Avg Cost / Sack</th><th>Latest Cost / Sack</th><th>Selling Price / Sack</th><th>Est. Margin</th></tr>
+          </thead>
+          <tbody id="cost-summary-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <span class="card__title">Inventory Batches</span>
+        <span class="text-muted text-small" id="record-count">0 records</span>
+      </div>
+
+      <!-- Filters -->
+      <div style="padding: 14px 20px; border-bottom: 1px solid var(--border);" class="no-print">
+        <div class="filter-bar">
+          <div class="form-group">
+            <label class="form-label">From Date</label>
+            <input type="date" class="form-input" id="filter-date-from" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">To Date</label>
+            <input type="date" class="form-input" id="filter-date-to" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Product</label>
+            <select class="form-select" id="filter-product"><option value="">All Products</option></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Supplier</label>
+            <select class="form-select" id="filter-supplier"><option value="">All Suppliers</option></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select class="form-select" id="filter-status">
+              <option value="">All</option>
+              <option value="active">In Stock</option>
+              <option value="low">Low Stock</option>
+              <option value="depleted">Depleted</option>
+            </select>
+          </div>
+          <div style="padding-top:20px;">
+            <button class="btn btn--secondary" id="btn-reset">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="inv-table">
+          <thead>
+            <tr>
+              <th>Date Received</th>
+              <th>Product</th>
+              <th>Supplier</th>
+              <th>Orig. Qty</th>
+              <th>Remaining</th>
+              <th>Cost / Sack</th>
+              <th>Batch Value</th>
+              <th>Received By</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="inv-tbody"></tbody>
+        </table>
+        <div id="inv-empty" class="empty-state" style="display:none;">
+          <div class="empty-state__icon">🗂️</div>
+          <div class="empty-state__title">No inventory records</div>
+          <div class="empty-state__text">Receive stock in the Stock In module.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../shared/db.js"></script>
+<script src="../../shared/utils.js"></script>
+<script>
+DB.initEmpty();
+
+function init() {
+  populateFilters();
+  renderStats();
+  renderCostSummary();
+  renderTable();
+
+  document.getElementById('hamburger').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+  document.getElementById('btn-print').addEventListener('click', () => window.print());
+
+  ['filter-date-from','filter-date-to','filter-product','filter-supplier','filter-status'].forEach(id => {
+    document.getElementById(id).addEventListener('change', renderTable);
+  });
+
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    ['filter-date-from','filter-date-to','filter-product','filter-supplier','filter-status'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    renderTable();
+  });
+}
+
+function populateFilters() {
+  const products  = DB.getData('products');
+  const suppliers = DB.getData('suppliers');
+  const fpEl = document.getElementById('filter-product');
+  const fsEl = document.getElementById('filter-supplier');
+  products.forEach(p  => { const o = document.createElement('option'); o.value = p.id;  o.textContent = p.name;  fpEl.appendChild(o); });
+  suppliers.forEach(s => { const o = document.createElement('option'); o.value = s.id;  o.textContent = s.name;  fsEl.appendChild(o); });
+}
+
+function renderStats() {
+  const inventory = DB.getData('inventory');
+  const products  = DB.getData('products');
+  const total     = inventory.length;
+  const active    = inventory.filter(i => i.quantity > 0).length;
+  const totalUnits= inventory.reduce((s, i) => s + (i.quantity || 0), 0);
+  const totalValue= inventory.reduce((s, i) => s + (i.quantity || 0) * (i.costPrice || 0), 0);
+  const lowProds  = products.filter(p => { const s = Utils.getTotalStock(p.id); return s > 0 && s <= 10; }).length;
+
+  document.getElementById('inventory-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-card__label">Total Batches</div><div class="stat-card__value">${total}</div><div class="stat-card__sub">${active} active</div></div>
+    <div class="stat-card"><div class="stat-card__label">Total Sacks</div><div class="stat-card__value">${totalUnits}</div><div class="stat-card__sub">Across all batches</div></div>
+    <div class="stat-card stat-card--amber"><div class="stat-card__label">Inventory Value</div><div class="stat-card__value" style="font-size:1.3rem;">${Utils.formatCurrency(totalValue)}</div><div class="stat-card__sub">At cost price</div></div>
+    <div class="stat-card stat-card--amber"><div class="stat-card__label">Low Stock Products</div><div class="stat-card__value">${lowProds}</div><div class="stat-card__sub">≤ 10 sacks</div></div>
+  `;
+}
+
+function renderCostSummary() {
+  const products = DB.getData('products');
+  const tbody    = document.getElementById('cost-summary-tbody');
+  if (products.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted" style="text-align:center;padding:20px;">No products yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = products.map(p => {
+    const stock      = Utils.getTotalStock(p.id);
+    const avgCost    = DB.getAvgCost(p.id);
+    const latestCost = DB.getLatestCost(p.id);
+    const margin     = avgCost > 0 ? (((p.price - avgCost) / p.price) * 100).toFixed(1) : '—';
+    const marginColor = parseFloat(margin) >= 0 ? 'var(--green-700)' : 'var(--red-600)';
+    return `<tr>
+      <td><strong>${Utils.escape(p.name)}</strong></td>
+      <td>${stock} sacks</td>
+      <td><span style="background:var(--amber-100);color:var(--amber-700);border-radius:99px;padding:2px 8px;font-size:.75rem;font-weight:700;">${avgCost > 0 ? Utils.formatCurrency(avgCost) : '—'}</span></td>
+      <td><span style="background:var(--green-100);color:var(--green-800);border-radius:99px;padding:2px 8px;font-size:.75rem;font-weight:700;">${latestCost > 0 ? Utils.formatCurrency(latestCost) : '—'}</span></td>
+      <td style="font-weight:700;color:var(--green-700);">${Utils.formatCurrency(p.price)}</td>
+      <td style="color:${marginColor};font-weight:700;">${margin !== '—' ? margin + '%' : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTable() {
+  let inventory = DB.getData('inventory');
+
+  const dateFrom   = document.getElementById('filter-date-from').value;
+  const dateTo     = document.getElementById('filter-date-to').value;
+  const filterProd = document.getElementById('filter-product').value;
+  const filterSup  = document.getElementById('filter-supplier').value;
+  const filterStat = document.getElementById('filter-status').value;
+
+  if (dateFrom)   inventory = inventory.filter(i => i.dateReceived >= dateFrom);
+  if (dateTo)     inventory = inventory.filter(i => i.dateReceived <= dateTo + 'T23:59:59');
+  if (filterProd) inventory = inventory.filter(i => i.productId  === filterProd);
+  if (filterSup)  inventory = inventory.filter(i => i.supplierId === filterSup);
+  if (filterStat === 'active')   inventory = inventory.filter(i => i.quantity > 10);
+  if (filterStat === 'low')      inventory = inventory.filter(i => i.quantity > 0 && i.quantity <= 10);
+  if (filterStat === 'depleted') inventory = inventory.filter(i => i.quantity === 0);
+
+  inventory.sort((a, b) => new Date(b.dateReceived) - new Date(a.dateReceived));
+
+  document.getElementById('record-count').textContent = `${inventory.length} record${inventory.length !== 1 ? 's' : ''}`;
+  const tbody = document.getElementById('inv-tbody');
+  const empty = document.getElementById('inv-empty');
+  tbody.innerHTML = '';
+
+  if (inventory.length === 0) {
+    empty.style.display = 'flex';
+    document.querySelector('#inv-table thead').style.display = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  document.querySelector('#inv-table thead').style.display = '';
+
+  inventory.forEach(batch => {
+    const isDepleted = batch.quantity === 0;
+    const isLow      = batch.quantity > 0 && batch.quantity <= 10;
+    const batchValue = (batch.quantity || 0) * (batch.costPrice || 0);
+    let statusBadge  = `<span class="badge badge--green">In Stock</span>`;
+    if (isDepleted) statusBadge = `<span class="badge badge--slate">Depleted</span>`;
+    else if (isLow) statusBadge = `<span class="badge badge--amber">⚠ Low</span>`;
+
+    const tr = document.createElement('tr');
+    if (isLow)      tr.classList.add('inv-row--low');
+    if (isDepleted) tr.classList.add('inv-row--depleted');
+    tr.innerHTML = `
+      <td class="text-small text-muted">${Utils.formatDate(batch.dateReceived)}</td>
+      <td><strong>${Utils.escape(Utils.getProductName(batch.productId))}</strong></td>
+      <td>${Utils.escape(Utils.getSupplierName(batch.supplierId))}</td>
+      <td class="text-muted">${batch.receivedQty || batch.quantity || 0}</td>
+      <td style="font-weight:700;color:${isDepleted ? 'var(--slate-400)' : isLow ? 'var(--amber-600)' : 'var(--green-700)'};">${batch.quantity}</td>
+      <td>${Utils.formatCurrency(batch.costPrice)}</td>
+      <td>${isDepleted ? '<span class="text-muted">—</span>' : Utils.formatCurrency(batchValue)}</td>
+      <td class="text-small">${Utils.escape(batch.receivedBy || '—')}</td>
+      <td>${statusBadge}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+init();
+</script>
+</body>
+</html>

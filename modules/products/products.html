@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgroFeed POS — Products</title>
+  <link rel="stylesheet" href="../../shared/styles.css" />
+  <style>
+    .cost-pill {
+      display: inline-block;
+      background: var(--slate-100); color: var(--slate-600);
+      border-radius: 99px; padding: 2px 8px; font-size: .72rem; font-weight: 600;
+      margin-right: 4px; white-space: nowrap;
+    }
+    .cost-pill--avg    { background: var(--amber-100); color: var(--amber-700); }
+    .cost-pill--latest { background: var(--green-100); color: var(--green-800); }
+  </style>
+</head>
+<body>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar__brand">
+    <div class="sidebar__brand-icon">🌾</div>
+    <div class="sidebar__brand-name">AgroFeed POS</div>
+    <div class="sidebar__brand-sub">Feeds Store System</div>
+  </div>
+  <div class="sidebar__nav">
+    <div class="sidebar__section-label">Main</div>
+    <a href="../../index.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="../pos/pos.html"><span class="nav-icon">🛒</span> Point of Sale</a>
+    <div class="sidebar__section-label">Management</div>
+    <a href="products.html" class="active"><span class="nav-icon">📦</span> Products</a>
+    <a href="../suppliers/suppliers.html"><span class="nav-icon">🏭</span> Suppliers</a>
+    <a href="../stock-in/stock-in.html"><span class="nav-icon">📥</span> Stock In</a>
+    <a href="../inventory/inventory.html"><span class="nav-icon">🗂️</span> Inventory</a>
+    <div class="sidebar__section-label">Reports</div>
+    <a href="../sales/sales.html"><span class="nav-icon">📊</span> Sales</a>
+  </div>
+  <div class="sidebar__footer">v2.0 · AgroFeed POS</div>
+</nav>
+
+<div class="main">
+  <header class="page-header">
+    <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+    <div>
+      <div class="page-header__title">📦 Products</div>
+      <div class="page-header__sub">Manage your product catalog</div>
+    </div>
+    <button class="btn btn--primary" id="btn-add-product">+ Add Product</button>
+  </header>
+
+  <div class="page-content">
+    <div class="stats-grid" id="product-stats"></div>
+
+    <div class="card">
+      <div class="card__header">
+        <span class="card__title">All Products</span>
+        <div class="search-bar" style="min-width:200px;">
+          <span class="search-bar__icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Search products…" />
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="product-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Product Name</th>
+              <th>Selling Price / Sack</th>
+              <th>Avg Cost</th>
+              <th>Latest Cost</th>
+              <th>Stock</th>
+              <th>Suppliers</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="product-tbody"></tbody>
+        </table>
+        <div id="product-empty" class="empty-state" style="display:none;">
+          <div class="empty-state__icon">📦</div>
+          <div class="empty-state__title">No products yet</div>
+          <div class="empty-state__text">Click "Add Product" to add your first product.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="modal-overlay" id="modal-product">
+  <div class="modal">
+    <div class="modal__header">
+      <div class="modal__title" id="modal-title">Add Product</div>
+      <button class="modal__close" data-close="modal-product">✕</button>
+    </div>
+    <div class="modal__body">
+      <div class="info-banner" style="font-size:.8rem;">
+        <span>ℹ️</span>
+        <span>
+          <strong>Selling Price</strong> is what you charge the customer per sack.<br>
+          <strong>Cost per Sack</strong> is entered when you receive stock (Stock In module).
+        </span>
+      </div>
+      <input type="hidden" id="edit-id" />
+      <div class="form-group">
+        <label class="form-label">Product Name <span style="color:var(--red-600)">*</span></label>
+        <input type="text" class="form-input" id="field-name" placeholder="e.g. Broiler Starter Mash" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Selling Price per Sack (₱) <span style="color:var(--red-600)">*</span></label>
+        <input type="number" class="form-input" id="field-price" min="0" step="0.01" placeholder="0.00" />
+      </div>
+      <div class="form-actions">
+        <button class="btn btn--secondary" data-close="modal-product">Cancel</button>
+        <button class="btn btn--primary" id="btn-save-product">Add Product</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Price History Modal -->
+<div class="modal-overlay" id="modal-price-history">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal__header">
+      <div class="modal__title" id="price-history-title">Price History</div>
+      <button class="modal__close" data-close="modal-price-history">✕</button>
+    </div>
+    <div class="modal__body" id="price-history-body"></div>
+  </div>
+</div>
+
+<script src="../../shared/db.js"></script>
+<script src="../../shared/utils.js"></script>
+<script>
+DB.initEmpty();
+
+let searchQuery = '';
+
+function init() {
+  renderStats(); renderTable();
+  document.getElementById('hamburger').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+  document.getElementById('btn-add-product').addEventListener('click', openAddModal);
+  document.getElementById('btn-save-product').addEventListener('click', saveProduct);
+  document.getElementById('search-input').addEventListener('input', e => { searchQuery = e.target.value.toLowerCase(); renderTable(); });
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.dataset.close)));
+  document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); }));
+}
+
+function renderStats() {
+  const products  = DB.getData('products');
+  const inventory = DB.getData('inventory');
+  const totalSacks = inventory.reduce((s, i) => s + (i.quantity || 0), 0);
+  const lowStock   = products.filter(p => { const s = Utils.getTotalStock(p.id); return s > 0 && s <= 10; }).length;
+  const outOfStock = products.filter(p => Utils.getTotalStock(p.id) === 0).length;
+
+  document.getElementById('product-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-card__label">Total Products</div><div class="stat-card__value">${products.length}</div></div>
+    <div class="stat-card stat-card--amber"><div class="stat-card__label">Low Stock</div><div class="stat-card__value">${lowStock}</div><div class="stat-card__sub">≤ 10 sacks</div></div>
+    <div class="stat-card stat-card--red"><div class="stat-card__label">Out of Stock</div><div class="stat-card__value">${outOfStock}</div></div>
+    <div class="stat-card"><div class="stat-card__label">Total Sacks</div><div class="stat-card__value">${totalSacks}</div><div class="stat-card__sub">All products</div></div>
+  `;
+}
+
+function renderTable() {
+  let products = DB.getData('products');
+  if (searchQuery) products = products.filter(p => p.name.toLowerCase().includes(searchQuery));
+
+  const tbody      = document.getElementById('product-tbody');
+  const emptyState = document.getElementById('product-empty');
+  tbody.innerHTML  = '';
+
+  if (products.length === 0) {
+    emptyState.style.display = 'flex';
+    document.querySelector('#product-table thead').style.display = 'none';
+    return;
+  }
+  emptyState.style.display = 'none';
+  document.querySelector('#product-table thead').style.display = '';
+
+  const inventory = DB.getData('inventory');
+  const suppliers = DB.getData('suppliers');
+
+  products.forEach((p, i) => {
+    const totalSacks = Utils.getTotalStock(p.id);
+    const isLow = totalSacks > 0 && totalSacks <= 10;
+    const isOut = totalSacks === 0;
+    const avgCost    = DB.getAvgCost(p.id);
+    const latestCost = DB.getLatestCost(p.id);
+
+    const supplierIds = [...new Set(inventory.filter(inv => inv.productId === p.id).map(inv => inv.supplierId))];
+    const chips = supplierIds.map(sid => {
+      const sup = DB.findById('suppliers', sid);
+      return sup ? `<span class="supplier-chip">${Utils.escape(sup.name)}</span>` : '';
+    }).join('');
+
+    let stockBadge = `<span class="badge badge--green">✓ ${totalSacks} sacks</span>`;
+    if (isOut) stockBadge = `<span class="badge badge--red">Out of stock</span>`;
+    else if (isLow) stockBadge = `<span class="badge badge--amber">⚠ ${totalSacks} low</span>`;
+
+    const histCount = DB.getData('price_history').filter(h => h.productId === p.id).length;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="text-muted">${i + 1}</td>
+      <td><strong>${Utils.escape(p.name)}</strong></td>
+      <td style="font-weight:700;color:var(--green-700);">${Utils.formatCurrency(p.price)}<span class="text-muted text-small"> /sack</span></td>
+      <td><span class="cost-pill cost-pill--avg">${avgCost > 0 ? Utils.formatCurrency(avgCost) : '—'}</span></td>
+      <td><span class="cost-pill cost-pill--latest">${latestCost > 0 ? Utils.formatCurrency(latestCost) : '—'}</span></td>
+      <td>${stockBadge}</td>
+      <td><div class="supplier-chips">${chips || '<span class="text-muted text-small">—</span>'}</div></td>
+      <td>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+          <button class="btn btn--secondary btn--sm btn-edit" data-id="${p.id}">✏️ Edit</button>
+          <button class="btn btn--ghost btn--sm btn-history" data-id="${p.id}">📈${histCount > 0 ? ' '+histCount : ''}</button>
+          <button class="btn btn--danger btn--sm btn-delete" data-id="${p.id}">🗑</button>
+        </div>
+      </td>`;
+    tr.querySelector('.btn-edit').addEventListener('click', () => openEditModal(p.id));
+    tr.querySelector('.btn-history').addEventListener('click', () => openPriceHistory(p.id));
+    tr.querySelector('.btn-delete').addEventListener('click', () => deleteProduct(p.id));
+    tbody.appendChild(tr);
+  });
+}
+
+function openAddModal() {
+  document.getElementById('modal-title').textContent = 'Add Product';
+  document.getElementById('edit-id').value   = '';
+  document.getElementById('field-name').value  = '';
+  document.getElementById('field-price').value = '';
+  document.getElementById('btn-save-product').textContent = 'Add Product';
+  openModal('modal-product');
+  setTimeout(() => document.getElementById('field-name').focus(), 100);
+}
+
+function openEditModal(id) {
+  const p = DB.findById('products', id);
+  if (!p) return;
+  document.getElementById('modal-title').textContent = 'Edit Product';
+  document.getElementById('edit-id').value   = p.id;
+  document.getElementById('field-name').value  = p.name;
+  document.getElementById('field-price').value = p.price;
+  document.getElementById('btn-save-product').textContent = 'Save Changes';
+  openModal('modal-product');
+}
+
+function saveProduct() {
+  const name  = document.getElementById('field-name').value.trim();
+  const price = parseFloat(document.getElementById('field-price').value);
+  if (!name)             { Utils.showToast('Product name is required.', 'error'); return; }
+  if (isNaN(price) || price < 0) { Utils.showToast('Enter a valid price.', 'error'); return; }
+  const id = document.getElementById('edit-id').value;
+  if (id) {
+    const existing = DB.findById('products', id);
+    if (existing && existing.price !== price) DB.logPriceChange(id, existing.price, price);
+    DB.update('products', id, { name, price });
+    Utils.showToast('Product updated!');
+  } else {
+    DB.insert('products', { name, price });
+    Utils.showToast('Product added!');
+  }
+  closeModal('modal-product');
+  renderStats(); renderTable();
+}
+
+function deleteProduct(id) {
+  const p = DB.findById('products', id);
+  if (!p) return;
+  const hasInventory = DB.getData('inventory').some(i => i.productId === id);
+  const hasSales     = DB.getData('sales').some(s => s.items.some(i => i.productId === id));
+  let msg = `Delete "${p.name}"?`;
+  if (hasInventory || hasSales) msg += '\n\n⚠️ This product has inventory or sales records.';
+  if (!Utils.confirm(msg)) return;
+  DB.delete('products', id);
+  Utils.showToast('Product deleted.', 'warning');
+  renderStats(); renderTable();
+}
+
+function openPriceHistory(productId) {
+  const p = DB.findById('products', productId);
+  const history = DB.getData('price_history')
+    .filter(h => h.productId === productId)
+    .sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt));
+  document.getElementById('price-history-title').textContent = `📈 Price History — ${p ? p.name : ''}`;
+  const bodyEl = document.getElementById('price-history-body');
+  if (history.length === 0) {
+    bodyEl.innerHTML = `<p class="text-muted" style="text-align:center;padding:20px 0;">No price changes recorded yet.</p>`;
+    openModal('modal-price-history'); return;
+  }
+  const rows = history.map(h => {
+    const arrow = h.newPrice > h.oldPrice
+      ? `<span style="color:var(--red-600)">▲ +${Utils.formatCurrency(h.newPrice - h.oldPrice)}</span>`
+      : `<span style="color:var(--green-600)">▼ −${Utils.formatCurrency(h.oldPrice - h.newPrice)}</span>`;
+    return `<tr><td class="text-small text-muted">${Utils.formatDateTime(h.changedAt)}</td><td>${Utils.formatCurrency(h.oldPrice)}</td><td>${Utils.formatCurrency(h.newPrice)}</td><td>${arrow}</td></tr>`;
+  }).join('');
+  bodyEl.innerHTML = `
+    <p class="text-small text-muted" style="margin-bottom:12px;">Current price: <strong>${p ? Utils.formatCurrency(p.price) : '—'}/sack</strong> · ${history.length} change${history.length !== 1 ? 's' : ''}</p>
+    <div class="table-wrap"><table><thead><tr><th>Date</th><th>Old Price</th><th>New Price</th><th>Change</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  openModal('modal-price-history');
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+init();
+</script>
+</body>
+</html>

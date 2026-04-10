@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>AgroFeed POS — Point of Sale</title>
+  <link rel="stylesheet" href="../../shared/styles.css" />
+  <style>
+    /* ── POS Layout ─────────────────────────────────────────── */
+    .pos-layout {
+      display: flex;
+      height: calc(100vh - var(--header-h));
+      overflow: hidden;
+    }
+    .pos-products-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-right: 1px solid var(--border);
+      min-width: 0;
+    }
+    .pos-cart-panel {
+      width: 320px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    /* ── Supplier Tabs ──────────────────────────────────────── */
+    .supplier-tabs-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 14px;
+      overflow-x: auto;
+      flex-shrink: 0;
+    }
+    .supplier-tabs { display: flex; gap: 4px; padding: 10px 0; min-width: max-content; }
+    .supplier-tab {
+      padding: 6px 16px; border-radius: 99px;
+      border: 1.5px solid var(--border); background: var(--surface);
+      font-family: var(--font-body); font-size: .82rem; font-weight: 600;
+      color: var(--slate-600); cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .supplier-tab:hover { border-color: var(--green-400); color: var(--green-700); }
+    .supplier-tab.active { background: var(--green-600); border-color: var(--green-600); color: var(--white); }
+
+    /* ── Toolbar ────────────────────────────────────────────── */
+    .pos-toolbar {
+      padding: 10px 14px; background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex; gap: 10px; align-items: center;
+      flex-shrink: 0;
+    }
+
+    /* ── Product Grid ───────────────────────────────────────── */
+    .product-grid {
+      flex: 1; overflow-y: auto; padding: 14px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px; align-content: start;
+    }
+    .product-card {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 14px 12px; cursor: pointer;
+      transition: all .15s; display: flex; flex-direction: column; gap: 6px;
+      position: relative; overflow: hidden;
+    }
+    .product-card:hover:not(.product-card--disabled) { border-color: var(--green-400); box-shadow: var(--shadow); transform: translateY(-1px); }
+    .product-card:active:not(.product-card--disabled) { transform: scale(.97); }
+    .product-card--disabled { opacity: .5; cursor: not-allowed; background: var(--slate-50); }
+    .product-card--low-stock { border-color: var(--amber-300); }
+    .product-card__emoji { font-size: 1.6rem; }
+    .product-card__name { font-family: var(--font-head); font-size: .85rem; font-weight: 700; color: var(--slate-900); line-height: 1.3; }
+    .product-card__price { font-size: .95rem; font-weight: 700; color: var(--green-700); }
+    .product-card__cost  { font-size: .7rem; color: var(--slate-400); }
+    .product-card__stock { display: flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 600; }
+    .stock-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .stock-dot--ok  { background: var(--green-500); }
+    .stock-dot--low { background: var(--amber-500); }
+    .stock-dot--out { background: var(--red-600); }
+    .stock-text--ok  { color: var(--green-700); }
+    .stock-text--low { color: var(--amber-600); }
+    .stock-text--out { color: var(--red-600); }
+    .product-card__in-cart {
+      position: absolute; top: 7px; right: 7px;
+      background: var(--green-600); color: var(--white);
+      border-radius: 99px; width: 20px; height: 20px;
+      font-size: .68rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .no-products-msg {
+      grid-column: 1 / -1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 40px 20px; text-align: center; color: var(--slate-400); gap: 8px;
+    }
+
+    /* ── Cart Panel ─────────────────────────────────────────── */
+    .cart-header {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .cart-title { font-family: var(--font-head); font-size: .95rem; font-weight: 700; }
+    .cart-items { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+    .cart-empty {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 6px; height: 100%; color: var(--slate-400); text-align: center; font-size: .85rem;
+    }
+    .cart-item {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 11px;
+    }
+    .cart-item__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; margin-bottom: 7px; }
+    .cart-item__name { font-weight: 600; font-size: .83rem; color: var(--slate-900); line-height: 1.3; }
+    .cart-item__supplier { font-size: .7rem; color: var(--slate-500); margin-top: 1px; }
+    .cart-item__remove { background: none; border: none; cursor: pointer; color: var(--slate-400); font-size: .85rem; padding: 2px 4px; border-radius: 4px; flex-shrink: 0; transition: color .15s; }
+    .cart-item__remove:hover { color: var(--red-600); }
+    .cart-item__bottom { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .qty-controls { display: flex; align-items: center; gap: 4px; }
+    .qty-btn { width: 26px; height: 26px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; font-size: .9rem; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: all .1s; color: var(--slate-700); flex-shrink: 0; }
+    .qty-btn:hover { background: var(--green-100); border-color: var(--green-400); color: var(--green-700); }
+    .qty-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .qty-value { min-width: 24px; text-align: center; font-weight: 700; font-size: .85rem; }
+    .cart-item__subtotal { font-weight: 700; font-size: .9rem; color: var(--green-700); }
+
+    /* ── Cart Summary ───────────────────────────────────────── */
+    .cart-summary { padding: 12px 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 7px; flex-shrink: 0; }
+    .cart-summary-row { display: flex; justify-content: space-between; align-items: center; font-size: .83rem; color: var(--slate-600); }
+    .cart-total-row { font-family: var(--font-head); font-size: 1.15rem; font-weight: 800; color: var(--slate-900); padding-top: 7px; border-top: 1px solid var(--border); }
+
+    /* ── Checkout Modal ─────────────────────────────────────── */
+    .checkout-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 10px; font-size: .85rem; }
+    .checkout-item:last-of-type { border-bottom: none; }
+    .checkout-item__info { flex: 1; }
+    .checkout-item__name { font-weight: 600; color: var(--slate-900); }
+    .checkout-item__meta { font-size: .73rem; color: var(--slate-500); margin-top: 2px; }
+    .checkout-item__price { font-weight: 700; color: var(--green-700); white-space: nowrap; font-size: .85rem; }
+    .checkout-item__disc  { font-size: .72rem; color: var(--amber-600); }
+    .checkout-total { display: flex; justify-content: space-between; padding-top: 10px; font-family: var(--font-head); font-size: 1.15rem; font-weight: 800; color: var(--slate-900); border-top: 2px solid var(--border); margin-top: 4px; }
+
+    .section-label { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--slate-500); margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+    .payment-status-btns { display: flex; gap: 6px; margin-bottom: 12px; }
+    .payment-status-btn  { flex: 1; padding: 7px 4px; border: 2px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; font-size: .78rem; font-weight: 600; text-align: center; transition: all .15s; }
+    .payment-status-btn.active-paid    { border-color: var(--green-600); background: var(--green-100); color: var(--green-800); }
+    .payment-status-btn.active-partial { border-color: #d97706; background: #fef3c7; color: #92400e; }
+    .payment-status-btn.active-unpaid  { border-color: var(--red-600); background: var(--red-100); color: var(--red-600); }
+
+    .tendered-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .tendered-row input { flex: 1; }
+    .change-display { background: var(--bg); border-radius: var(--radius); padding: 9px 12px; display: flex; justify-content: space-between; font-size: .88rem; }
+    .balance-label { color: var(--red-600); font-weight: 700; }
+    .change-label  { color: var(--green-700); font-weight: 700; }
+
+    .disc-row { display: flex; gap: 8px; align-items: center; }
+    .disc-type-btn { padding: 6px 10px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; font-size: .78rem; font-weight: 700; transition: all .15s; }
+    .disc-type-btn.active { background: var(--amber-100); border-color: var(--amber-400); color: var(--amber-700); }
+
+    /* ── Receipt Modal ──────────────────────────────────────── */
+    .receipt-modal .modal { max-width: 420px; }
+    .receipt-scroll { max-height: 70vh; overflow-y: auto; }
+    .sig-controls { display: flex; gap: 8px; margin-top: 6px; }
+
+    /* ── Mobile POS ─────────────────────────────────────────── */
+    .mobile-cart-bar {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--green-600); color: var(--white);
+      padding: 14px 20px; z-index: 200;
+      align-items: center; justify-content: space-between;
+      cursor: pointer; box-shadow: 0 -4px 16px rgba(0,0,0,.15);
+    }
+    .mobile-cart-bar__label { font-weight: 600; font-size: .9rem; }
+    .mobile-cart-bar__total { font-family: var(--font-head); font-size: 1.1rem; font-weight: 800; }
+    .mobile-cart-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 300;
+      background: rgba(15,23,42,.4);
+      align-items: flex-end;
+    }
+    .mobile-cart-overlay.open { display: flex; }
+    .mobile-cart-sheet {
+      background: var(--surface); width: 100%;
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      display: flex; flex-direction: column;
+      max-height: 85vh; overflow: hidden;
+    }
+    .mobile-cart-sheet-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+    }
+    .mobile-cart-body { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+    .mobile-cart-footer { padding: 12px 16px; border-top: 1px solid var(--border); }
+
+    @media (max-width: 768px) {
+      .pos-layout { height: auto; flex-direction: column; }
+      .pos-products-panel { height: calc(100vh - var(--header-h) - 60px); }
+      .pos-cart-panel { display: none; }
+      .mobile-cart-bar { display: flex; }
+      .product-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+    }
+    @media (max-width: 480px) {
+      .product-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar__brand">
+    <div class="sidebar__brand-icon">🌾</div>
+    <div class="sidebar__brand-name">AgroFeed POS</div>
+    <div class="sidebar__brand-sub">Feeds Store System</div>
+  </div>
+  <div class="sidebar__nav">
+    <div class="sidebar__section-label">Main</div>
+    <a href="../../index.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="pos.html" class="active"><span class="nav-icon">🛒</span> Point of Sale</a>
+    <div class="sidebar__section-label">Management</div>
+    <a href="../products/products.html"><span class="nav-icon">📦</span> Products</a>
+    <a href="../suppliers/suppliers.html"><span class="nav-icon">🏭</span> Suppliers</a>
+    <a href="../stock-in/stock-in.html"><span class="nav-icon">📥</span> Stock In</a>
+    <a href="../inventory/inventory.html"><span class="nav-icon">🗂️</span> Inventory</a>
+    <div class="sidebar__section-label">Reports</div>
+    <a href="../sales/sales.html"><span class="nav-icon">📊</span> Sales</a>
+  </div>
+  <div class="sidebar__footer">v2.0 · AgroFeed POS</div>
+</nav>
+
+<div class="main">
+  <header class="page-header">
+    <button class="hamburger" id="hamburger" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div>
+      <div class="page-header__title">🛒 Point of Sale</div>
+      <div class="page-header__sub">Select a supplier, then add products</div>
+    </div>
+  </header>
+
+  <div class="pos-layout">
+    <!-- LEFT: Products -->
+    <div class="pos-products-panel">
+      <div class="supplier-tabs-bar">
+        <div class="supplier-tabs" id="supplier-tabs"></div>
+      </div>
+      <div class="pos-toolbar">
+        <div class="search-bar flex-1">
+          <span class="search-bar__icon">🔍</span>
+          <input type="text" id="product-search" placeholder="Search products…" />
+        </div>
+      </div>
+      <div class="product-grid" id="product-grid"></div>
+    </div>
+
+    <!-- RIGHT: Cart (desktop) -->
+    <div class="pos-cart-panel">
+      <div class="cart-header">
+        <span class="cart-title">🛒 Cart</span>
+        <button class="btn btn--ghost btn--sm" id="btn-clear-cart">Clear</button>
+      </div>
+      <div class="cart-items" id="cart-items">
+        <div class="cart-empty" id="cart-empty">
+          <div style="font-size:2.5rem;opacity:.35">🛒</div>
+          <div>Cart is empty</div>
+          <div class="text-small text-muted">Tap products to add</div>
+        </div>
+      </div>
+      <div class="cart-summary">
+        <div class="cart-summary-row">
+          <span>Sacks</span>
+          <span id="cart-sacks">0</span>
+        </div>
+        <div class="cart-summary-row cart-total-row">
+          <span>TOTAL</span>
+          <span id="cart-total">₱0.00</span>
+        </div>
+        <button class="btn btn--primary btn--full btn--lg" id="btn-checkout" disabled>✅ Checkout</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile Cart Bar -->
+<div class="mobile-cart-bar" id="mobile-cart-bar">
+  <span class="mobile-cart-bar__label" id="mobile-cart-label">Cart (0 items)</span>
+  <span class="mobile-cart-bar__total" id="mobile-cart-total">₱0.00</span>
+</div>
+
+<!-- Mobile Cart Overlay -->
+<div class="mobile-cart-overlay" id="mobile-cart-overlay">
+  <div class="mobile-cart-sheet">
+    <div class="mobile-cart-sheet-header">
+      <span style="font-family:var(--font-head);font-weight:700;">🛒 Cart</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn--ghost btn--sm" id="mobile-btn-clear">Clear</button>
+        <button class="btn btn--ghost btn--sm" id="mobile-btn-close-cart">✕</button>
+      </div>
+    </div>
+    <div class="mobile-cart-body" id="mobile-cart-items"></div>
+    <div class="mobile-cart-footer">
+      <div class="cart-summary-row cart-total-row" style="margin-bottom:10px;">
+        <span>TOTAL</span>
+        <span id="mobile-cart-grand">₱0.00</span>
+      </div>
+      <button class="btn btn--primary btn--full btn--lg" id="mobile-btn-checkout" disabled>✅ Checkout</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Checkout Modal ─────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-checkout">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal__header">
+      <div class="modal__title">🧾 Confirm Sale</div>
+      <button class="modal__close" data-close="modal-checkout">✕</button>
+    </div>
+    <div class="modal__body" style="max-height:80vh;overflow-y:auto;">
+
+      <!-- Customer -->
+      <div class="form-group">
+        <label class="form-label">👤 Customer Name</label>
+        <input type="text" class="form-input" id="field-customer" placeholder="e.g. Juan dela Cruz (optional)" />
+      </div>
+
+      <!-- Items summary -->
+      <div class="section-label" style="margin-top:4px;">Order Items</div>
+      <div id="checkout-summary"></div>
+
+      <!-- Per-item discounts -->
+      <div id="item-disc-section"></div>
+
+      <!-- Global discount -->
+      <div style="margin-top:14px;">
+        <div class="section-label">🏷️ Order Discount</div>
+        <div class="disc-row">
+          <button class="disc-type-btn active" id="disc-type-pct" data-type="pct">%</button>
+          <button class="disc-type-btn" id="disc-type-fixed" data-type="fixed">₱</button>
+          <input type="number" class="form-input" id="field-disc" min="0" step="0.01" placeholder="0" style="flex:1;" />
+        </div>
+        <div id="disc-preview" style="margin-top:6px;font-size:.82rem;color:var(--amber-700);"></div>
+      </div>
+
+      <!-- Payment -->
+      <div style="margin-top:14px;">
+        <div class="section-label">💳 Payment</div>
+        <div class="payment-status-btns">
+          <button class="payment-status-btn active-paid" id="psbtn-paid"    data-status="paid">✅ Paid</button>
+          <button class="payment-status-btn"             id="psbtn-partial" data-status="partial">⚠️ Partial</button>
+          <button class="payment-status-btn"             id="psbtn-unpaid"  data-status="unpaid">❌ Unpaid</button>
+        </div>
+        <div id="tendered-section">
+          <div class="tendered-row">
+            <label style="white-space:nowrap;font-size:.82rem;font-weight:600;">Cash Tendered (₱)</label>
+            <input type="number" class="form-input" id="field-tendered" min="0" step="0.01" placeholder="0.00" />
+          </div>
+          <div class="change-display" id="change-display">
+            <span class="text-muted">Change</span>
+            <span id="change-amount">₱0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn--secondary" data-close="modal-checkout">Cancel</button>
+        <button class="btn btn--primary" id="btn-confirm-checkout">✅ Complete Sale</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Receipt Modal ──────────────────────────────────────────────── -->
+<div class="modal-overlay receipt-modal" id="modal-receipt">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal__header">
+      <div class="modal__title">🧾 Receipt</div>
+      <button class="modal__close" data-close="modal-receipt">✕</button>
+    </div>
+    <div class="modal__body">
+      <div class="receipt-scroll">
+        <div class="receipt-wrap" id="receipt-content">
+          <!-- filled by JS -->
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+        <button class="btn btn--primary flex-1" id="btn-save-receipt-pdf">💾 Save as PDF</button>
+        <button class="btn btn--secondary" data-close="modal-receipt">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- jsPDF + html2canvas from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="../../shared/db.js"></script>
+<script src="../../shared/utils.js"></script>
+<script>
+DB.initEmpty();
+
+let activeSupplier      = null;
+let cart                = [];
+let searchQuery         = '';
+let selectedPaymentStatus = 'paid';
+let discountType        = 'pct';
+let lastSaleData        = null;
+
+// ── Signature state ───────────────────────────────────────────
+let sigCanvas, sigCtx, isSigning = false, lastSigX, lastSigY;
+
+// ── DOM refs ──────────────────────────────────────────────────
+const supplierTabsEl  = document.getElementById('supplier-tabs');
+const productGridEl   = document.getElementById('product-grid');
+const cartItemsEl     = document.getElementById('cart-items');
+const cartEmptyEl     = document.getElementById('cart-empty');
+const cartTotalEl     = document.getElementById('cart-total');
+const cartSacksEl     = document.getElementById('cart-sacks');
+const btnCheckout     = document.getElementById('btn-checkout');
+const btnClearCart    = document.getElementById('btn-clear-cart');
+const searchInput     = document.getElementById('product-search');
+const fieldCustomer   = document.getElementById('field-customer');
+const fieldDisc       = document.getElementById('field-disc');
+const fieldTendered   = document.getElementById('field-tendered');
+const changeAmountEl  = document.getElementById('change-amount');
+const tenderedSection = document.getElementById('tendered-section');
+const discPreviewEl   = document.getElementById('disc-preview');
+const checkoutSumEl   = document.getElementById('checkout-summary');
+const itemDiscSec     = document.getElementById('item-disc-section');
+
+function init() {
+  DB.initEmpty();
+  renderSupplierTabs();
+
+  document.getElementById('hamburger').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('open');
+  });
+
+  searchInput.addEventListener('input', e => { searchQuery = e.target.value.toLowerCase(); renderProducts(); });
+  btnClearCart.addEventListener('click', clearCart);
+  btnCheckout.addEventListener('click', openCheckout);
+  document.getElementById('btn-confirm-checkout').addEventListener('click', processCheckout);
+
+  // Discount type toggle
+  document.getElementById('disc-type-pct').addEventListener('click',   () => setDiscType('pct'));
+  document.getElementById('disc-type-fixed').addEventListener('click', () => setDiscType('fixed'));
+  fieldDisc.addEventListener('input', updateDiscPreview);
+
+  // Payment status
+  ['paid','partial','unpaid'].forEach(s => {
+    document.getElementById(`psbtn-${s}`).addEventListener('click', () => selectPaymentStatus(s));
+  });
+  fieldTendered.addEventListener('input', updateChangeDisplay);
+
+  // Receipt PDF
+  document.getElementById('btn-save-receipt-pdf').addEventListener('click', saveReceiptPDF);
+
+  // Mobile cart
+  document.getElementById('mobile-cart-bar').addEventListener('click', openMobileCart);
+  document.getElementById('mobile-btn-close-cart').addEventListener('click', closeMobileCart);
+  document.getElementById('mobile-btn-clear').addEventListener('click', clearCart);
+  document.getElementById('mobile-btn-checkout').addEventListener('click', openCheckout);
+
+  // Modal close buttons
+  document.querySelectorAll('[data-close]').forEach(btn => {
+    btn.addEventListener('click', () => closeModal(btn.dataset.close));
+  });
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay.id); });
+  });
+}
+
+// ── Supplier Tabs ─────────────────────────────────────────────
+function renderSupplierTabs() {
+  const suppliers = DB.getData('suppliers');
+  supplierTabsEl.innerHTML = '';
+  if (suppliers.length === 0) {
+    supplierTabsEl.innerHTML = '<span class="text-muted text-small">No suppliers. <a href="../suppliers/suppliers.html">Add one →</a></span>';
+    return;
+  }
+  suppliers.forEach((sup, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'supplier-tab' + (i === 0 ? ' active' : '');
+    btn.textContent = sup.name;
+    btn.dataset.id  = sup.id;
+    btn.addEventListener('click', () => selectSupplier(sup.id));
+    supplierTabsEl.appendChild(btn);
+  });
+  if (suppliers.length > 0) selectSupplier(suppliers[0].id);
+}
+
+function selectSupplier(id) {
+  activeSupplier = id;
+  document.querySelectorAll('.supplier-tab').forEach(b => b.classList.toggle('active', b.dataset.id === id));
+  renderProducts();
+}
+
+// ── Products ──────────────────────────────────────────────────
+function getEmoji(name) {
+  const n = name.toLowerCase();
+  if (n.includes('broiler') || n.includes('chicken')) return '🐔';
+  if (n.includes('layer'))  return '🥚';
+  if (n.includes('hog') || n.includes('pig') || n.includes('swine')) return '🐷';
+  if (n.includes('cattle') || n.includes('cow')) return '🐄';
+  if (n.includes('duck'))   return '🦆';
+  if (n.includes('goat'))   return '🐐';
+  if (n.includes('rabbit')) return '🐰';
+  if (n.includes('fish'))   return '🐟';
+  return '🌾';
+}
+
+function renderProducts() {
+  if (!activeSupplier) {
+    productGridEl.innerHTML = '<div class="no-products-msg"><span>🏭</span><span>Select a supplier to view products</span></div>';
+    return;
+  }
+  const products  = DB.getData('products');
+  const inventory = DB.getData('inventory');
+  const ids = [...new Set(inventory.filter(i => i.supplierId === activeSupplier).map(i => i.productId))];
+  let list = products.filter(p => ids.includes(p.id));
+  if (searchQuery) list = list.filter(p => p.name.toLowerCase().includes(searchQuery));
+
+  if (list.length === 0) {
+    productGridEl.innerHTML = `<div class="no-products-msg"><span>📭</span><span>${searchQuery ? 'No matches.' : 'No products for this supplier.'}</span></div>`;
+    return;
+  }
+
+  productGridEl.innerHTML = '';
+  list.forEach(p => {
+    const stock   = Utils.getStockByProductSupplier(p.id, activeSupplier);
+    const cartQty = (cart.find(c => c.productId === p.id && c.supplierId === activeSupplier) || {}).quantity || 0;
+    const isOut   = stock === 0;
+    const isLow   = stock > 0 && stock <= 10;
+    let sClass = 'ok', sLabel = `${stock} sacks`;
+    if (isOut) { sClass = 'out'; sLabel = 'Out of stock'; }
+    else if (isLow) { sClass = 'low'; sLabel = `Low: ${stock}`; }
+
+    const avgCost    = DB.getAvgCost(p.id);
+    const latestCost = DB.getLatestCost(p.id);
+
+    const card = document.createElement('div');
+    card.className = `product-card ${isOut ? 'product-card--disabled' : ''} ${isLow ? 'product-card--low-stock' : ''}`;
+    card.innerHTML = `
+      ${cartQty > 0 ? `<div class="product-card__in-cart">${cartQty}</div>` : ''}
+      <div class="product-card__emoji">${getEmoji(p.name)}</div>
+      <div class="product-card__name">${Utils.escape(p.name)}</div>
+      <div class="product-card__price">${Utils.formatCurrency(p.price)}<span style="font-size:.68rem;opacity:.7"> /sack</span></div>
+      <div class="product-card__cost">Avg cost: ${Utils.formatCurrency(avgCost)}</div>
+      <div class="product-card__stock">
+        <span class="stock-dot stock-dot--${sClass}"></span>
+        <span class="stock-text--${sClass}">${sLabel}</span>
+      </div>`;
+    if (!isOut) card.addEventListener('click', () => addToCart(p, activeSupplier, stock));
+    productGridEl.appendChild(card);
+  });
+}
+
+// ── Cart ──────────────────────────────────────────────────────
+function addToCart(product, supplierId, maxStock) {
+  const existing = cart.find(c => c.productId === product.id && c.supplierId === supplierId);
+  if (existing) {
+    if (existing.quantity >= maxStock) { Utils.showToast(`Only ${maxStock} sacks available.`, 'warning'); return; }
+    existing.quantity++;
+  } else {
+    cart.push({
+      productId: product.id, supplierId,
+      productName: product.name,
+      supplierName: Utils.getSupplierName(supplierId),
+      quantity: 1, price: product.price,
+    });
+  }
+  renderCart(); renderProducts();
+}
+
+function changeQty(productId, supplierId, delta) {
+  const idx = cart.findIndex(c => c.productId === productId && c.supplierId === supplierId);
+  if (idx === -1) return;
+  const stock  = Utils.getStockByProductSupplier(productId, supplierId);
+  const newQty = cart[idx].quantity + delta;
+  if (newQty <= 0) { removeFromCart(productId, supplierId); return; }
+  if (newQty > stock) { Utils.showToast(`Max: ${stock} sacks`, 'warning'); return; }
+  cart[idx].quantity = newQty;
+  renderCart(); renderProducts();
+}
+
+function removeFromCart(productId, supplierId) {
+  cart = cart.filter(c => !(c.productId === productId && c.supplierId === supplierId));
+  renderCart(); renderProducts();
+}
+
+function clearCart() {
+  if (cart.length === 0) return;
+  if (!Utils.confirm('Clear the cart?')) return;
+  cart = [];
+  renderCart(); renderProducts();
+}
+
+function cartItemHTML(item) {
+  const stock    = Utils.getStockByProductSupplier(item.productId, item.supplierId);
+  const subtotal = item.price * item.quantity;
+  return `
+    <div class="cart-item" data-pid="${item.productId}" data-sid="${item.supplierId}">
+      <div class="cart-item__top">
+        <div>
+          <div class="cart-item__name">${Utils.escape(item.productName)}</div>
+          <div class="cart-item__supplier">📦 ${Utils.escape(item.supplierName)}</div>
+        </div>
+        <button class="cart-item__remove cart-remove-btn">✕</button>
+      </div>
+      <div class="cart-item__bottom">
+        <div class="qty-controls">
+          <button class="qty-btn qty-btn--minus" ${item.quantity <= 1 ? 'disabled' : ''}>−</button>
+          <span class="qty-value">${item.quantity}</span>
+          <button class="qty-btn qty-btn--plus"  ${item.quantity >= stock ? 'disabled' : ''}>+</button>
+        </div>
+        <div class="cart-item__subtotal">${Utils.formatCurrency(subtotal)}</div>
+      </div>
+    </div>`;
+}
+
+function attachCartItemEvents(container) {
+  container.querySelectorAll('.cart-item').forEach(el => {
+    const pid = el.dataset.pid, sid = el.dataset.sid;
+    el.querySelector('.cart-remove-btn').addEventListener('click', () => removeFromCart(pid, sid));
+    el.querySelector('.qty-btn--minus').addEventListener('click',  () => changeQty(pid, sid, -1));
+    el.querySelector('.qty-btn--plus').addEventListener('click',   () => changeQty(pid, sid, +1));
+  });
+}
+
+function renderCart() {
+  let total = 0, totalSacks = 0;
+  cart.forEach(item => { total += item.price * item.quantity; totalSacks += item.quantity; });
+
+  // Desktop cart
+  cartEmptyEl.style.display = cart.length === 0 ? 'flex' : 'none';
+  cartItemsEl.querySelectorAll('.cart-item').forEach(e => e.remove());
+  cart.forEach(item => {
+    const div = document.createElement('div');
+    div.innerHTML = cartItemHTML(item);
+    const node = div.firstElementChild;
+    cartItemsEl.appendChild(node);
+  });
+  attachCartItemEvents(cartItemsEl);
+  cartTotalEl.textContent  = Utils.formatCurrency(total);
+  cartSacksEl.textContent  = totalSacks;
+  btnCheckout.disabled     = cart.length === 0;
+
+  // Mobile
+  const mobileItems = document.getElementById('mobile-cart-items');
+  mobileItems.innerHTML = '';
+  if (cart.length === 0) {
+    mobileItems.innerHTML = '<div class="cart-empty" style="height:120px;"><div style="font-size:2rem;opacity:.35">🛒</div><div>Cart is empty</div></div>';
+  } else {
+    cart.forEach(item => {
+      const div = document.createElement('div');
+      div.innerHTML = cartItemHTML(item);
+      mobileItems.appendChild(div.firstElementChild);
+    });
+    attachCartItemEvents(mobileItems);
+  }
+  document.getElementById('mobile-cart-grand').textContent = Utils.formatCurrency(total);
+  document.getElementById('mobile-cart-label').textContent = `Cart (${totalSacks} sack${totalSacks !== 1 ? 's' : ''})`;
+  document.getElementById('mobile-cart-total').textContent = Utils.formatCurrency(total);
+  document.getElementById('mobile-btn-checkout').disabled  = cart.length === 0;
+}
+
+// ── Mobile cart ───────────────────────────────────────────────
+function openMobileCart()  { document.getElementById('mobile-cart-overlay').classList.add('open'); }
+function closeMobileCart() { document.getElementById('mobile-cart-overlay').classList.remove('open'); }
+
+// ── Checkout Modal ────────────────────────────────────────────
+function openCheckout() {
+  if (cart.length === 0) return;
+  closeMobileCart();
+  renderCheckoutSummary();
+  resetPaymentUI();
+  fieldCustomer.value = '';
+  fieldDisc.value     = '';
+  updateDiscPreview();
+  openModal('modal-checkout');
+}
+
+function renderCheckoutSummary() {
+  let html = '', grandTotal = 0;
+  cart.forEach(item => {
+    const sub = item.price * item.quantity;
+    grandTotal += sub;
+    html += `
+      <div class="checkout-item">
+        <div class="checkout-item__info">
+          <div class="checkout-item__name">${Utils.escape(item.productName)}</div>
+          <div class="checkout-item__meta">${Utils.escape(item.supplierName)} · ${item.quantity} sack${item.quantity !== 1 ? 's' : ''} × ${Utils.formatCurrency(item.price)}</div>
+        </div>
+        <div class="checkout-item__price">${Utils.formatCurrency(sub)}</div>
+      </div>`;
+  });
+  html += `<div class="checkout-total"><span>Subtotal</span><span id="checkout-subtotal">${Utils.formatCurrency(grandTotal)}</span></div>`;
+  checkoutSumEl.innerHTML = html;
+}
+
+function updateDiscPreview() {
+  const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const discVal  = parseFloat(fieldDisc.value) || 0;
+  const { discountAmount, finalAmount } = Utils.applyDiscount(subtotal, discVal, discountType);
+  if (discountAmount > 0) {
+    discPreviewEl.textContent = `Discount: −${Utils.formatCurrency(discountAmount)} → Total: ${Utils.formatCurrency(finalAmount)}`;
+  } else {
+    discPreviewEl.textContent = '';
+  }
+  updateChangeDisplay();
+}
+
+function setDiscType(type) {
+  discountType = type;
+  document.getElementById('disc-type-pct').classList.toggle('active', type === 'pct');
+  document.getElementById('disc-type-fixed').classList.toggle('active', type === 'fixed');
+  updateDiscPreview();
+}
+
+function getGrandTotal() {
+  const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const discVal  = parseFloat(fieldDisc.value) || 0;
+  const { finalAmount } = Utils.applyDiscount(subtotal, discVal, discountType);
+  return finalAmount;
+}
+
+function resetPaymentUI() {
+  selectPaymentStatus('paid');
+  fieldTendered.value = '';
+  updateChangeDisplay();
+}
+
+function selectPaymentStatus(status) {
+  selectedPaymentStatus = status;
+  ['paid','partial','unpaid'].forEach(s => {
+    const btn = document.getElementById(`psbtn-${s}`);
+    btn.className = 'payment-status-btn';
+    if (s === status) btn.classList.add(`active-${s}`);
+  });
+  tenderedSection.style.display = status === 'unpaid' ? 'none' : '';
+  if (status === 'paid') {
+    fieldTendered.value = getGrandTotal().toFixed(2);
+  } else if (status === 'partial') {
+    fieldTendered.value = '';
+  }
+  updateChangeDisplay();
+}
+
+function updateChangeDisplay() {
+  const total    = getGrandTotal();
+  const tendered = parseFloat(fieldTendered.value) || 0;
+  const diff     = tendered - total;
+  const el       = document.getElementById('change-display');
+  if (diff >= 0) {
+    el.innerHTML = `<span class="text-muted">Change</span><span class="change-label" id="change-amount">${Utils.formatCurrency(diff)}</span>`;
+  } else {
+    el.innerHTML = `<span class="text-muted">Balance Due</span><span class="balance-label" id="change-amount">${Utils.formatCurrency(Math.abs(diff))}</span>`;
+  }
+}
+
+// ── Process Checkout ──────────────────────────────────────────
+function processCheckout() {
+  for (const item of cart) {
+    const stock = Utils.getStockByProductSupplier(item.productId, item.supplierId);
+    if (item.quantity > stock) { Utils.showToast(`Not enough stock for "${item.productName}".`, 'error'); return; }
+  }
+
+  const subtotal       = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const discVal        = parseFloat(fieldDisc.value) || 0;
+  const { discountAmount, finalAmount: grandTotal } = Utils.applyDiscount(subtotal, discVal, discountType);
+  const amountTendered = selectedPaymentStatus === 'unpaid' ? 0 : (parseFloat(fieldTendered.value) || 0);
+  const customerName   = fieldCustomer.value.trim();
+
+  if (selectedPaymentStatus === 'partial' && amountTendered <= 0) { Utils.showToast('Enter cash tendered for partial payment.', 'error'); return; }
+  if (selectedPaymentStatus === 'partial' && amountTendered >= grandTotal) { Utils.showToast('Use "Paid" if tendered covers the full total.', 'warning'); return; }
+
+  const saleItems = cart.map(item => {
+    const costPrice = Utils.getCostForSaleItem(item.productId, item.supplierId);
+    return {
+      productId: item.productId, supplierId: item.supplierId,
+      productName: item.productName, supplierName: item.supplierName,
+      quantity: item.quantity, price: item.price,
+      subtotal: item.price * item.quantity, costPrice,
+    };
+  });
+
+  const sale = {
+    id:                  DB.generateId(),
+    date:                new Date().toISOString(),
+    customerName:        customerName || 'Walk-in Customer',
+    items:               saleItems,
+    subtotal,
+    orderDiscountValue:  discVal,
+    orderDiscountType:   discountType,
+    orderDiscountAmount: discountAmount,
+    total:               grandTotal,
+    paymentStatus:       selectedPaymentStatus,
+    amountTendered:      selectedPaymentStatus === 'unpaid' ? 0 : amountTendered,
+    amountDue:           Math.max(0, grandTotal - amountTendered),
+    change:              Math.max(0, amountTendered - grandTotal),
+  };
+
+  // Deduct inventory FIFO
+  for (const item of cart) {
+    if (!Utils.deductInventoryFIFO(item.productId, item.supplierId, item.quantity)) {
+      Utils.showToast(`Stock deduction failed for "${item.productName}".`, 'error'); return;
+    }
+  }
+
+  DB.insert('sales', sale);
+  lastSaleData = sale;
+
+  cart = [];
+  renderCart(); renderProducts();
+  closeModal('modal-checkout');
+  openReceiptModal(sale);
+}
+
+// ── Receipt ───────────────────────────────────────────────────
+function openReceiptModal(sale) {
+  const receiptEl = document.getElementById('receipt-content');
+  receiptEl.innerHTML = buildReceiptHTML(sale);
+  initSignaturePad();
+  openModal('modal-receipt');
+}
+
+function buildReceiptHTML(sale) {
+  const shortId    = sale.id.substring(0, 8).toUpperCase();
+  const status     = { paid: '✅ PAID', partial: '⚠️ PARTIAL', unpaid: '❌ UNPAID' }[sale.paymentStatus] || '';
+  let itemsHTML    = '';
+  sale.items.forEach(item => {
+    itemsHTML += `
+      <div class="receipt-item">
+        <div class="receipt-item-name">${Utils.escape(item.productName)}</div>
+        <div class="receipt-item-meta">
+          <span>${item.quantity} sk × ${Utils.formatCurrency(item.price)}</span>
+          <span>${Utils.formatCurrency(item.subtotal)}</span>
+        </div>
+      </div>`;
+  });
+
+  let discRow = '';
+  if (sale.orderDiscountAmount > 0) {
+    const discLabel = sale.orderDiscountType === 'pct'
+      ? `Discount (${sale.orderDiscountValue}%)`
+      : `Discount (Fixed)`;
+    discRow = `<div class="receipt-row"><span>${discLabel}</span><span style="color:#c00;">−${Utils.formatCurrency(sale.orderDiscountAmount)}</span></div>`;
+  }
+
+  let paymentRows = `<div class="receipt-row"><span>Status</span><span>${status}</span></div>`;
+  if (sale.paymentStatus !== 'unpaid') {
+    paymentRows += `<div class="receipt-row"><span>Cash Tendered</span><span>${Utils.formatCurrency(sale.amountTendered)}</span></div>`;
+  }
+  if (sale.change > 0)    paymentRows += `<div class="receipt-row"><span>Change</span><span>${Utils.formatCurrency(sale.change)}</span></div>`;
+  if (sale.amountDue > 0) paymentRows += `<div class="receipt-row"><span style="color:#c00;">Balance Due</span><span style="color:#c00;font-weight:700;">${Utils.formatCurrency(sale.amountDue)}</span></div>`;
+
+  return `
+    <div class="receipt-header">
+      <h2>🌾 AgroFeed POS</h2>
+      <p>Feeds Store System</p>
+    </div>
+    <hr class="receipt-divider">
+    <div class="receipt-row"><span>Receipt #</span><strong>${shortId}</strong></div>
+    <div class="receipt-row"><span>Date</span><span>${Utils.formatDateTime(sale.date)}</span></div>
+    <div class="receipt-row"><span>Customer</span><strong>${Utils.escape(sale.customerName)}</strong></div>
+    <hr class="receipt-divider">
+    <div class="receipt-items">${itemsHTML}</div>
+    <hr class="receipt-divider">
+    <div class="receipt-row"><span>Subtotal</span><span>${Utils.formatCurrency(sale.subtotal)}</span></div>
+    ${discRow}
+    <div class="receipt-total-row"><span>TOTAL</span><span>${Utils.formatCurrency(sale.total)}</span></div>
+    <hr class="receipt-divider">
+    ${paymentRows}
+    <hr class="receipt-divider">
+    <div class="signature-area">
+      <label>Customer Signature:</label>
+      <canvas class="signature-canvas" id="sig-canvas" width="300" height="90"></canvas>
+      <div class="sig-controls">
+        <button class="btn btn--ghost btn--sm" id="sig-clear-btn" onclick="clearSignature()">Clear Signature</button>
+      </div>
+    </div>
+    <div class="receipt-footer">Thank you for your purchase!<br>— AgroFeed POS —</div>
+  `;
+}
+
+// ── Signature Pad ─────────────────────────────────────────────
+function initSignaturePad() {
+  sigCanvas = document.getElementById('sig-canvas');
+  if (!sigCanvas) return;
+  sigCtx    = sigCanvas.getContext('2d');
+  sigCtx.strokeStyle = '#111';
+  sigCtx.lineWidth   = 2;
+  sigCtx.lineCap     = 'round';
+  sigCtx.lineJoin    = 'round';
+
+  function getPos(e) {
+    const rect = sigCanvas.getBoundingClientRect();
+    if (e.touches) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  sigCanvas.addEventListener('mousedown', e => {
+    isSigning = true;
+    const p = getPos(e);
+    sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y);
+    lastSigX = p.x; lastSigY = p.y;
+  });
+  sigCanvas.addEventListener('mousemove', e => {
+    if (!isSigning) return;
+    const p = getPos(e);
+    sigCtx.lineTo(p.x, p.y); sigCtx.stroke();
+    lastSigX = p.x; lastSigY = p.y;
+  });
+  sigCanvas.addEventListener('mouseup',   () => { isSigning = false; });
+  sigCanvas.addEventListener('mouseleave',() => { isSigning = false; });
+
+  sigCanvas.addEventListener('touchstart', e => {
+    e.preventDefault(); isSigning = true;
+    const p = getPos(e);
+    sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y);
+  }, { passive: false });
+  sigCanvas.addEventListener('touchmove', e => {
+    e.preventDefault(); if (!isSigning) return;
+    const p = getPos(e);
+    sigCtx.lineTo(p.x, p.y); sigCtx.stroke();
+  }, { passive: false });
+  sigCanvas.addEventListener('touchend', () => { isSigning = false; });
+}
+
+function clearSignature() {
+  if (sigCtx && sigCanvas) sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+}
+
+// ── Save Receipt as PDF ───────────────────────────────────────
+async function saveReceiptPDF() {
+  const btn = document.getElementById('btn-save-receipt-pdf');
+  btn.textContent = '⏳ Generating…';
+  btn.disabled = true;
+  try {
+    const el = document.getElementById('receipt-content');
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'px', format: [canvas.width / 2, canvas.height / 2] });
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+    const shortId = lastSaleData ? lastSaleData.id.substring(0, 8).toUpperCase() : 'receipt';
+    pdf.save(`receipt-${shortId}.pdf`);
+  } catch (err) {
+    console.error(err);
+    Utils.showToast('PDF generation failed. Try again.', 'error');
+  }
+  btn.textContent = '💾 Save as PDF';
+  btn.disabled = false;
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+init();
+</script>
+</body>
+</html>

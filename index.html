@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgroFeed POS — Dashboard</title>
+  <link rel="stylesheet" href="shared/styles.css" />
+  <style>
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .quick-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .quick-link-card {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 10px; background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 28px 20px; text-decoration: none;
+      color: var(--slate-900); transition: all .15s; text-align: center;
+    }
+    .quick-link-card:hover { border-color: var(--green-400); box-shadow: var(--shadow); transform: translateY(-2px); color: var(--green-700); }
+    .quick-link-card__icon { font-size: 2.2rem; }
+    .quick-link-card__label { font-family: var(--font-head); font-weight: 700; font-size: .95rem; }
+    .quick-link-card__desc  { font-size: .75rem; color: var(--slate-500); }
+    .alert-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 16px; }
+    .alert-card--amber { border-left: 3px solid var(--amber-400); }
+    .alert-card--red   { border-left: 3px solid var(--red-600); }
+    .alert-card__title { font-weight: 700; font-size: .88rem; margin-bottom: 8px; }
+    .alert-item { display: flex; justify-content: space-between; font-size: .82rem; padding: 5px 0; border-bottom: 1px solid var(--border); }
+    .alert-item:last-child { border-bottom: none; }
+  </style>
+</head>
+<body>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar__brand">
+    <div class="sidebar__brand-icon">🌾</div>
+    <div class="sidebar__brand-name">AgroFeed POS</div>
+    <div class="sidebar__brand-sub">Feeds Store System</div>
+  </div>
+  <div class="sidebar__nav">
+    <div class="sidebar__section-label">Main</div>
+    <a href="index.html" class="active"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="modules/pos/pos.html"><span class="nav-icon">🛒</span> Point of Sale</a>
+    <div class="sidebar__section-label">Management</div>
+    <a href="modules/products/products.html"><span class="nav-icon">📦</span> Products</a>
+    <a href="modules/suppliers/suppliers.html"><span class="nav-icon">🏭</span> Suppliers</a>
+    <a href="modules/stock-in/stock-in.html"><span class="nav-icon">📥</span> Stock In</a>
+    <a href="modules/inventory/inventory.html"><span class="nav-icon">🗂️</span> Inventory</a>
+    <div class="sidebar__section-label">Reports</div>
+    <a href="modules/sales/sales.html"><span class="nav-icon">📊</span> Sales</a>
+  </div>
+  <div class="sidebar__footer">v2.0 · AgroFeed POS</div>
+</nav>
+
+<div class="main">
+  <header class="page-header">
+    <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+    <div>
+      <div class="page-header__title">🏠 Dashboard</div>
+      <div class="page-header__sub" id="dashboard-date"></div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn--secondary" id="btn-export">⬇ Export</button>
+      <label class="btn btn--secondary" style="cursor:pointer;">⬆ Import <input type="file" id="import-file" accept=".json" style="display:none;"></label>
+    </div>
+  </header>
+
+  <div class="page-content">
+    <!-- Stats -->
+    <div class="stats-grid" id="dashboard-stats"></div>
+
+    <!-- Alerts -->
+    <div id="alerts-section"></div>
+
+    <div class="dashboard-grid">
+      <!-- Quick Links -->
+      <div>
+        <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:14px;">Quick Actions</h3>
+        <div class="quick-links">
+          <a href="modules/pos/pos.html" class="quick-link-card">
+            <div class="quick-link-card__icon">🛒</div>
+            <div class="quick-link-card__label">Point of Sale</div>
+            <div class="quick-link-card__desc">Process a new sale</div>
+          </a>
+          <a href="modules/stock-in/stock-in.html" class="quick-link-card">
+            <div class="quick-link-card__icon">📥</div>
+            <div class="quick-link-card__label">Receive Stock</div>
+            <div class="quick-link-card__desc">Add inventory batch</div>
+          </a>
+          <a href="modules/products/products.html" class="quick-link-card">
+            <div class="quick-link-card__icon">📦</div>
+            <div class="quick-link-card__label">Products</div>
+            <div class="quick-link-card__desc">Manage catalog</div>
+          </a>
+          <a href="modules/suppliers/suppliers.html" class="quick-link-card">
+            <div class="quick-link-card__icon">🏭</div>
+            <div class="quick-link-card__label">Suppliers</div>
+            <div class="quick-link-card__desc">Manage suppliers</div>
+          </a>
+          <a href="modules/sales/sales.html" class="quick-link-card">
+            <div class="quick-link-card__icon">📊</div>
+            <div class="quick-link-card__label">Sales Report</div>
+            <div class="quick-link-card__desc">View all transactions</div>
+          </a>
+          <a href="modules/inventory/inventory.html" class="quick-link-card">
+            <div class="quick-link-card__icon">🗂️</div>
+            <div class="quick-link-card__label">Inventory</div>
+            <div class="quick-link-card__desc">View stock levels</div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Today's Summary -->
+      <div>
+        <h3 style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:14px;">Today's Activity</h3>
+        <div id="today-summary" class="card card__body"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="shared/db.js"></script>
+<script src="shared/utils.js"></script>
+<script>
+DB.initEmpty();
+
+function init() {
+  document.getElementById('dashboard-date').textContent = new Date().toLocaleDateString('en-PH', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  document.getElementById('hamburger').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+
+  document.getElementById('btn-export').addEventListener('click', () => {
+    const data = DB.exportBackup();
+    const blob = new Blob([data], { type: 'application/json' });
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = `agrofeed-backup-${Utils.todayISO()}.json`;
+    a.click();
+  });
+
+  document.getElementById('import-file').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        DB.importBackup(ev.target.result);
+        Utils.showToast('Data imported successfully!');
+        renderDashboard();
+      } catch (err) {
+        Utils.showToast('Import failed — invalid file.', 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const products  = DB.getData('products');
+  const suppliers = DB.getData('suppliers');
+  const inventory = DB.getData('inventory');
+  const sales     = DB.getData('sales');
+
+  const today      = Utils.todayISO();
+  const salesToday = sales.filter(s => s.date && s.date.startsWith(today));
+
+  let todayRevenue = 0, todayProfit = 0;
+  salesToday.forEach(s => {
+    const p = Utils.calcSaleProfit(s);
+    todayRevenue += p.revenue; todayProfit += p.profit;
+  });
+
+  let totalRevenue = 0, totalProfit = 0;
+  sales.forEach(s => {
+    const p = Utils.calcSaleProfit(s);
+    totalRevenue += p.revenue; totalProfit += p.profit;
+  });
+
+  const totalSacks    = inventory.reduce((s, i) => s + (i.quantity || 0), 0);
+  const inventoryValue= inventory.reduce((s, i) => s + (i.quantity || 0) * (i.costPrice || 0), 0);
+  const totalUnpaid   = sales.filter(s => (s.paymentStatus||'paid') !== 'paid').reduce((sum, s) => sum + (s.amountDue || 0), 0);
+
+  document.getElementById('dashboard-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-card__label">Products</div><div class="stat-card__value">${products.length}</div></div>
+    <div class="stat-card"><div class="stat-card__label">Suppliers</div><div class="stat-card__value">${suppliers.length}</div></div>
+    <div class="stat-card stat-card--amber"><div class="stat-card__label">Inventory Value</div><div class="stat-card__value" style="font-size:1.3rem;">${Utils.formatCurrency(inventoryValue)}</div><div class="stat-card__sub">${totalSacks} sacks</div></div>
+    <div class="stat-card"><div class="stat-card__label">Total Revenue</div><div class="stat-card__value" style="font-size:1.3rem;">${Utils.formatCurrency(totalRevenue)}</div></div>
+    <div class="stat-card stat-card--green"><div class="stat-card__label">Net Profit</div><div class="stat-card__value" style="font-size:1.3rem;color:var(--green-700);">${Utils.formatCurrency(totalProfit)}</div></div>
+    <div class="stat-card stat-card--red"><div class="stat-card__label">Outstanding</div><div class="stat-card__value" style="font-size:1.3rem;color:var(--red-600);">${Utils.formatCurrency(totalUnpaid)}</div></div>
+  `;
+
+  // Alerts
+  const lowProducts = products.filter(p => { const s = Utils.getTotalStock(p.id); return s > 0 && s <= 10; });
+  const outProducts = products.filter(p => Utils.getTotalStock(p.id) === 0 && DB.getData('inventory').some(i => i.productId === p.id));
+  const unpaidSales = sales.filter(s => (s.paymentStatus||'paid') !== 'paid');
+
+  let alertsHTML = '';
+  if (outProducts.length > 0) {
+    const items = outProducts.slice(0, 5).map(p => `<div class="alert-item"><span>${Utils.escape(p.name)}</span><span class="badge badge--red">Out</span></div>`).join('');
+    alertsHTML += `<div class="alert-card alert-card--red"><div class="alert-card__title">⛔ Out of Stock (${outProducts.length})</div>${items}${outProducts.length > 5 ? `<div class="text-small text-muted" style="margin-top:6px;">+${outProducts.length-5} more</div>` : ''}</div>`;
+  }
+  if (lowProducts.length > 0) {
+    const items = lowProducts.slice(0, 5).map(p => `<div class="alert-item"><span>${Utils.escape(p.name)}</span><span>${Utils.getTotalStock(p.id)} sacks</span></div>`).join('');
+    alertsHTML += `<div class="alert-card alert-card--amber"><div class="alert-card__title">⚠️ Low Stock (${lowProducts.length})</div>${items}</div>`;
+  }
+  if (unpaidSales.length > 0) {
+    const items = unpaidSales.slice(0, 5).map(s => `<div class="alert-item"><span>${Utils.escape(s.customerName||'Walk-in')} · #${s.id.substring(0,6).toUpperCase()}</span><span style="color:var(--red-600);font-weight:700;">${Utils.formatCurrency(s.amountDue||0)}</span></div>`).join('');
+    alertsHTML += `<div class="alert-card alert-card--red"><div class="alert-card__title">💸 Pending Payments (${unpaidSales.length})</div>${items}</div>`;
+  }
+  document.getElementById('alerts-section').innerHTML = alertsHTML;
+
+  // Today's summary
+  const summaryEl = document.getElementById('today-summary');
+  if (salesToday.length === 0) {
+    summaryEl.innerHTML = `<div style="text-align:center;padding:30px 0;color:var(--slate-400);">
+      <div style="font-size:2rem;margin-bottom:8px;">☀️</div>
+      <div>No sales yet today</div>
+      <a href="modules/pos/pos.html" class="btn btn--primary" style="margin-top:14px;display:inline-flex;">Start Selling →</a>
+    </div>`;
+  } else {
+    summaryEl.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px;padding:16px;">
+        <div style="display:flex;justify-content:space-between;font-size:.88rem;"><span class="text-muted">Transactions</span><strong>${salesToday.length}</strong></div>
+        <div style="display:flex;justify-content:space-between;font-size:.88rem;"><span class="text-muted">Revenue</span><strong style="color:var(--green-700)">${Utils.formatCurrency(todayRevenue)}</strong></div>
+        <div style="display:flex;justify-content:space-between;font-size:.88rem;"><span class="text-muted">Net Profit</span><strong style="color:var(--green-600)">${Utils.formatCurrency(todayProfit)}</strong></div>
+        <a href="modules/sales/sales.html" class="btn btn--secondary btn--sm" style="margin-top:4px;align-self:flex-end;">View All Sales →</a>
+      </div>`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>

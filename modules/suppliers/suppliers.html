@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgroFeed POS — Suppliers</title>
+  <link rel="stylesheet" href="../../shared/styles.css" />
+</head>
+<body>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar__brand">
+    <div class="sidebar__brand-icon">🌾</div>
+    <div class="sidebar__brand-name">AgroFeed POS</div>
+    <div class="sidebar__brand-sub">Feeds Store System</div>
+  </div>
+  <div class="sidebar__nav">
+    <div class="sidebar__section-label">Main</div>
+    <a href="../../index.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="../pos/pos.html"><span class="nav-icon">🛒</span> Point of Sale</a>
+    <div class="sidebar__section-label">Management</div>
+    <a href="../products/products.html"><span class="nav-icon">📦</span> Products</a>
+    <a href="suppliers.html" class="active"><span class="nav-icon">🏭</span> Suppliers</a>
+    <a href="../stock-in/stock-in.html"><span class="nav-icon">📥</span> Stock In</a>
+    <a href="../inventory/inventory.html"><span class="nav-icon">🗂️</span> Inventory</a>
+    <div class="sidebar__section-label">Reports</div>
+    <a href="../sales/sales.html"><span class="nav-icon">📊</span> Sales</a>
+  </div>
+  <div class="sidebar__footer">v2.0 · AgroFeed POS</div>
+</nav>
+
+<div class="main">
+  <header class="page-header">
+    <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+    <div>
+      <div class="page-header__title">🏭 Suppliers</div>
+      <div class="page-header__sub">Manage your supplier list</div>
+    </div>
+    <button class="btn btn--primary" id="btn-add-supplier">+ Add Supplier</button>
+  </header>
+
+  <div class="page-content">
+    <div class="stats-grid" id="supplier-stats"></div>
+
+    <div class="card">
+      <div class="card__header">
+        <span class="card__title">All Suppliers</span>
+        <div class="search-bar" style="min-width:200px;">
+          <span class="search-bar__icon">🔍</span>
+          <input type="text" id="search-input" placeholder="Search suppliers…" />
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="supplier-table">
+          <thead>
+            <tr><th>#</th><th>Supplier Name</th><th>Contact</th><th>Address</th><th>Products</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="supplier-tbody"></tbody>
+        </table>
+        <div id="supplier-empty" class="empty-state" style="display:none;">
+          <div class="empty-state__icon">🏭</div>
+          <div class="empty-state__title">No suppliers yet</div>
+          <div class="empty-state__text">Click "Add Supplier" to get started.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="modal-overlay" id="modal-supplier">
+  <div class="modal">
+    <div class="modal__header">
+      <div class="modal__title" id="modal-title">Add Supplier</div>
+      <button class="modal__close" data-close="modal-supplier">✕</button>
+    </div>
+    <div class="modal__body">
+      <input type="hidden" id="edit-id" />
+      <div class="form-group">
+        <label class="form-label">Supplier Name <span style="color:var(--red-600)">*</span></label>
+        <input type="text" class="form-input" id="field-name" placeholder="e.g. AgroFeed Co." />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contact Person</label>
+        <input type="text" class="form-input" id="field-contact" placeholder="e.g. Juan Santos" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="text" class="form-input" id="field-phone" placeholder="e.g. 0917-123-4567" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Address</label>
+        <input type="text" class="form-input" id="field-address" placeholder="e.g. Brgy. San Jose, Koronadal" />
+      </div>
+      <div class="form-actions">
+        <button class="btn btn--secondary" data-close="modal-supplier">Cancel</button>
+        <button class="btn btn--primary" id="btn-save-supplier">Add Supplier</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../shared/db.js"></script>
+<script src="../../shared/utils.js"></script>
+<script>
+DB.initEmpty();
+let searchQuery = '';
+
+function init() {
+  renderStats(); renderTable();
+  document.getElementById('hamburger').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+  document.getElementById('btn-add-supplier').addEventListener('click', openAddModal);
+  document.getElementById('btn-save-supplier').addEventListener('click', saveSupplier);
+  document.getElementById('search-input').addEventListener('input', e => { searchQuery = e.target.value.toLowerCase(); renderTable(); });
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeModal(b.dataset.close)));
+  document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); }));
+}
+
+function renderStats() {
+  const suppliers = DB.getData('suppliers');
+  const inventory = DB.getData('inventory');
+  const activeIds = [...new Set(inventory.filter(i => i.quantity > 0).map(i => i.supplierId))];
+  document.getElementById('supplier-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-card__label">Total Suppliers</div><div class="stat-card__value">${suppliers.length}</div></div>
+    <div class="stat-card stat-card--green"><div class="stat-card__label">Active (have stock)</div><div class="stat-card__value">${activeIds.length}</div></div>
+  `;
+}
+
+function renderTable() {
+  let suppliers = DB.getData('suppliers');
+  if (searchQuery) suppliers = suppliers.filter(s => s.name.toLowerCase().includes(searchQuery));
+  const tbody      = document.getElementById('supplier-tbody');
+  const emptyState = document.getElementById('supplier-empty');
+  tbody.innerHTML  = '';
+  if (suppliers.length === 0) {
+    emptyState.style.display = 'flex';
+    document.querySelector('#supplier-table thead').style.display = 'none';
+    return;
+  }
+  emptyState.style.display = 'none';
+  document.querySelector('#supplier-table thead').style.display = '';
+
+  const inventory = DB.getData('inventory');
+  const products  = DB.getData('products');
+
+  suppliers.forEach((s, i) => {
+    const pIds   = [...new Set(inventory.filter(inv => inv.supplierId === s.id).map(inv => inv.productId))];
+    const pChips = pIds.map(pid => {
+      const p = DB.findById('products', pid);
+      return p ? `<span class="supplier-chip">${Utils.escape(p.name)}</span>` : '';
+    }).join('');
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="text-muted">${i + 1}</td>
+      <td><strong>${Utils.escape(s.name)}</strong></td>
+      <td>
+        <div style="font-size:.82rem;">${s.contactPerson ? Utils.escape(s.contactPerson) : '<span class="text-muted">—</span>'}</div>
+        <div style="font-size:.75rem;color:var(--slate-500);">${s.phone ? Utils.escape(s.phone) : ''}</div>
+      </td>
+      <td class="text-small">${s.address ? Utils.escape(s.address) : '<span class="text-muted">—</span>'}</td>
+      <td><div class="supplier-chips">${pChips || '<span class="text-muted text-small">—</span>'}</div></td>
+      <td>
+        <div style="display:flex;gap:5px;">
+          <button class="btn btn--secondary btn--sm btn-edit" data-id="${s.id}">✏️ Edit</button>
+          <button class="btn btn--danger btn--sm btn-delete" data-id="${s.id}">🗑</button>
+        </div>
+      </td>`;
+    tr.querySelector('.btn-edit').addEventListener('click', () => openEditModal(s.id));
+    tr.querySelector('.btn-delete').addEventListener('click', () => deleteSupplier(s.id));
+    tbody.appendChild(tr);
+  });
+}
+
+function openAddModal() {
+  document.getElementById('modal-title').textContent = 'Add Supplier';
+  document.getElementById('edit-id').value      = '';
+  document.getElementById('field-name').value    = '';
+  document.getElementById('field-contact').value = '';
+  document.getElementById('field-phone').value   = '';
+  document.getElementById('field-address').value = '';
+  document.getElementById('btn-save-supplier').textContent = 'Add Supplier';
+  openModal('modal-supplier');
+  setTimeout(() => document.getElementById('field-name').focus(), 100);
+}
+
+function openEditModal(id) {
+  const s = DB.findById('suppliers', id);
+  if (!s) return;
+  document.getElementById('modal-title').textContent = 'Edit Supplier';
+  document.getElementById('edit-id').value      = s.id;
+  document.getElementById('field-name').value    = s.name;
+  document.getElementById('field-contact').value = s.contactPerson || '';
+  document.getElementById('field-phone').value   = s.phone || '';
+  document.getElementById('field-address').value = s.address || '';
+  document.getElementById('btn-save-supplier').textContent = 'Save Changes';
+  openModal('modal-supplier');
+}
+
+function saveSupplier() {
+  const name = document.getElementById('field-name').value.trim();
+  if (!name) { Utils.showToast('Supplier name is required.', 'error'); return; }
+  const data = {
+    name,
+    contactPerson: document.getElementById('field-contact').value.trim(),
+    phone:         document.getElementById('field-phone').value.trim(),
+    address:       document.getElementById('field-address').value.trim(),
+  };
+  const id = document.getElementById('edit-id').value;
+  if (id) { DB.update('suppliers', id, data); Utils.showToast('Supplier updated!'); }
+  else    { DB.insert('suppliers', data);     Utils.showToast('Supplier added!'); }
+  closeModal('modal-supplier');
+  renderStats(); renderTable();
+}
+
+function deleteSupplier(id) {
+  const s = DB.findById('suppliers', id);
+  if (!s) return;
+  const inUse = DB.getData('inventory').some(i => i.supplierId === id);
+  let msg = `Delete "${s.name}"?`;
+  if (inUse) msg += '\n\n⚠️ This supplier has inventory records.';
+  if (!Utils.confirm(msg)) return;
+  DB.delete('suppliers', id);
+  Utils.showToast('Supplier deleted.', 'warning');
+  renderStats(); renderTable();
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+init();
+</script>
+</body>
+</html>

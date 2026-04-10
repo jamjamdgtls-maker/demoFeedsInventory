@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgroFeed POS — Stock In</title>
+  <link rel="stylesheet" href="../../shared/styles.css" />
+  <style>
+    .stock-in-layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+    .stock-preview { background: var(--green-50); border: 1px solid var(--green-200); border-radius: var(--radius); padding: 14px 16px; margin-top: 14px; font-size: .83rem; }
+    .stock-preview__title { font-weight: 700; color: var(--green-800); margin-bottom: 10px; font-size: .85rem; }
+    .stock-preview__row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--green-100); color: var(--green-900); }
+    .stock-preview__row:last-child { border-bottom: none; }
+    @media (max-width: 900px) { .stock-in-layout { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar__brand">
+    <div class="sidebar__brand-icon">🌾</div>
+    <div class="sidebar__brand-name">AgroFeed POS</div>
+    <div class="sidebar__brand-sub">Feeds Store System</div>
+  </div>
+  <div class="sidebar__nav">
+    <div class="sidebar__section-label">Main</div>
+    <a href="../../index.html"><span class="nav-icon">🏠</span> Dashboard</a>
+    <a href="../pos/pos.html"><span class="nav-icon">🛒</span> Point of Sale</a>
+    <div class="sidebar__section-label">Management</div>
+    <a href="../products/products.html"><span class="nav-icon">📦</span> Products</a>
+    <a href="../suppliers/suppliers.html"><span class="nav-icon">🏭</span> Suppliers</a>
+    <a href="stock-in.html" class="active"><span class="nav-icon">📥</span> Stock In</a>
+    <a href="../inventory/inventory.html"><span class="nav-icon">🗂️</span> Inventory</a>
+    <div class="sidebar__section-label">Reports</div>
+    <a href="../sales/sales.html"><span class="nav-icon">📊</span> Sales</a>
+  </div>
+  <div class="sidebar__footer">v2.0 · AgroFeed POS</div>
+</nav>
+
+<div class="main">
+  <header class="page-header">
+    <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+    <div>
+      <div class="page-header__title">📥 Stock In</div>
+      <div class="page-header__sub">Receive inventory — each delivery is tracked separately (FIFO)</div>
+    </div>
+  </header>
+
+  <div class="page-content">
+    <div class="stock-in-layout">
+      <!-- Form Column -->
+      <div>
+        <div class="card">
+          <div class="card__header"><span class="card__title">Receive New Stock</span></div>
+          <div class="card__body">
+            <div class="info-banner">
+              <span>ℹ️</span>
+              <span>Each submission creates a <strong>separate batch</strong>. Inventory is deducted FIFO (oldest batch first) when sold.</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Product <span style="color:var(--red-600)">*</span></label>
+              <select class="form-select" id="field-product"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Supplier <span style="color:var(--red-600)">*</span></label>
+              <select class="form-select" id="field-supplier"></select>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Quantity (Sacks) <span style="color:var(--red-600)">*</span></label>
+                <input type="number" class="form-input" id="field-quantity" min="1" placeholder="0" />
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Cost per Sack (₱) <span style="color:var(--red-600)">*</span></label>
+                <input type="number" class="form-input" id="field-cost" min="0" step="0.01" placeholder="0.00" />
+              </div>
+            </div>
+            <div class="form-group" style="margin-top:16px;">
+              <label class="form-label">Date Received</label>
+              <input type="date" class="form-input" id="field-date" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Received By <span style="color:var(--red-600)">*</span></label>
+              <input type="text" class="form-input" id="field-received-by" placeholder="e.g. Maria Santos" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Notes (optional)</label>
+              <input type="text" class="form-input" id="field-notes" placeholder="e.g. Delivery receipt #1234" />
+            </div>
+
+            <!-- Batch Preview -->
+            <div class="stock-preview" id="stock-preview" style="display:none;"></div>
+
+            <div style="margin-top:18px;">
+              <button class="btn btn--primary btn--full btn--lg" id="btn-submit">📥 Receive Stock</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Column -->
+      <div>
+        <div class="card">
+          <div class="card__header">
+            <span class="card__title">Recent Batches</span>
+            <span class="text-muted text-small" id="batch-count">0 batches</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Product</th>
+                  <th>Supplier</th>
+                  <th>Qty</th>
+                  <th>Cost/Sack</th>
+                  <th>Avg Cost</th>
+                  <th>Received By</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="history-tbody"></tbody>
+            </table>
+            <div id="history-empty" class="empty-state" style="display:none;">
+              <div class="empty-state__icon">📭</div>
+              <div class="empty-state__title">No batches yet</div>
+              <div class="empty-state__text">Receive your first delivery above.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../shared/db.js"></script>
+<script src="../../shared/utils.js"></script>
+<script>
+DB.initEmpty();
+
+const productSelect  = document.getElementById('field-product');
+const supplierSelect = document.getElementById('field-supplier');
+const qtyInput       = document.getElementById('field-quantity');
+const costInput      = document.getElementById('field-cost');
+const dateInput      = document.getElementById('field-date');
+const receivedByInput= document.getElementById('field-received-by');
+const notesInput     = document.getElementById('field-notes');
+const previewEl      = document.getElementById('stock-preview');
+
+function init() {
+  populateSelects();
+  dateInput.value = Utils.todayISO();
+  renderHistory();
+
+  document.getElementById('hamburger').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
+
+  [productSelect, supplierSelect, qtyInput, costInput].forEach(el => {
+    el.addEventListener('change', updatePreview);
+    el.addEventListener('input',  updatePreview);
+  });
+
+  document.getElementById('btn-submit').addEventListener('click', submitStockIn);
+}
+
+function populateSelects() {
+  const products  = DB.getData('products');
+  const suppliers = DB.getData('suppliers');
+
+  productSelect.innerHTML  = '<option value="">— Select product —</option>';
+  supplierSelect.innerHTML = '<option value="">— Select supplier —</option>';
+
+  if (products.length === 0) {
+    productSelect.innerHTML = '<option value="">No products — add products first</option>';
+  } else {
+    products.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id; o.textContent = p.name;
+      productSelect.appendChild(o);
+    });
+  }
+  if (suppliers.length === 0) {
+    supplierSelect.innerHTML = '<option value="">No suppliers — add suppliers first</option>';
+  } else {
+    suppliers.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.id; o.textContent = s.name;
+      supplierSelect.appendChild(o);
+    });
+  }
+}
+
+function updatePreview() {
+  const productId  = productSelect.value;
+  const supplierId = supplierSelect.value;
+  const qty        = parseInt(qtyInput.value);
+  const cost       = parseFloat(costInput.value);
+
+  if (!productId || !supplierId || isNaN(qty) || isNaN(cost)) {
+    previewEl.style.display = 'none'; return;
+  }
+
+  const product  = DB.findById('products', productId);
+  const supplier = DB.findById('suppliers', supplierId);
+  const existing = Utils.getStockByProductSupplier(productId, supplierId);
+  const avgCost  = DB.getAvgCost(productId);
+  const totalCostValue = qty * cost;
+
+  previewEl.style.display = 'block';
+  previewEl.innerHTML = `
+    <div class="stock-preview__title">📋 Batch Preview</div>
+    <div class="stock-preview__row"><span>Product</span><span>${Utils.escape(product?.name || '—')}</span></div>
+    <div class="stock-preview__row"><span>Supplier</span><span>${Utils.escape(supplier?.name || '—')}</span></div>
+    <div class="stock-preview__row"><span>Quantity</span><span>${qty} sacks</span></div>
+    <div class="stock-preview__row"><span>Cost per Sack</span><span>${Utils.formatCurrency(cost)}</span></div>
+    <div class="stock-preview__row"><span>Batch Total Value</span><span>${Utils.formatCurrency(totalCostValue)}</span></div>
+    <div class="stock-preview__row" style="margin-top:6px;padding-top:10px;border-top:1px solid var(--green-200);">
+      <span>Current Stock (this supplier)</span><span>${existing} sacks</span>
+    </div>
+    <div class="stock-preview__row"><span>After this batch</span><span style="color:var(--green-700);font-weight:700;">${existing + qty} sacks</span></div>
+    ${avgCost > 0 ? `<div class="stock-preview__row"><span>Avg Cost (all batches, after)</span><span>~${Utils.formatCurrency(avgCost)} /sack</span></div>` : ''}
+  `;
+}
+
+function submitStockIn() {
+  const productId   = productSelect.value;
+  const supplierId  = supplierSelect.value;
+  const qty         = parseInt(qtyInput.value);
+  const cost        = parseFloat(costInput.value);
+  const dateReceived = dateInput.value || Utils.todayISO();
+  const receivedBy  = receivedByInput.value.trim();
+  const notes       = notesInput.value.trim();
+
+  if (!productId)           { Utils.showToast('Select a product.', 'error');         return; }
+  if (!supplierId)          { Utils.showToast('Select a supplier.', 'error');        return; }
+  if (isNaN(qty) || qty < 1){ Utils.showToast('Enter a valid quantity (min 1).', 'error'); return; }
+  if (isNaN(cost) || cost < 0){ Utils.showToast('Enter a valid cost.', 'error');    return; }
+  if (!receivedBy)          { Utils.showToast('Enter the receiver\'s name.', 'error'); return; }
+
+  DB.insert('inventory', {
+    productId, supplierId,
+    quantity:     qty,
+    receivedQty:  qty,    // original qty for avg cost computation
+    costPrice:    cost,
+    dateReceived: new Date(dateReceived + 'T00:00:00').toISOString(),
+    receivedBy,
+    notes,
+  });
+
+  // Reset form
+  productSelect.value  = '';
+  supplierSelect.value = '';
+  qtyInput.value       = '';
+  costInput.value      = '';
+  receivedByInput.value = '';
+  notesInput.value     = '';
+  dateInput.value      = Utils.todayISO();
+  previewEl.style.display = 'none';
+
+  Utils.showToast(`✅ ${qty} sacks received!`);
+  renderHistory();
+}
+
+function renderHistory() {
+  const inventory = DB.getData('inventory').sort((a, b) => new Date(b.dateReceived) - new Date(a.dateReceived));
+  const tbody = document.getElementById('history-tbody');
+  const empty = document.getElementById('history-empty');
+  document.getElementById('batch-count').textContent = `${inventory.length} batch${inventory.length !== 1 ? 'es' : ''}`;
+  tbody.innerHTML = '';
+
+  if (inventory.length === 0) { empty.style.display = 'flex'; return; }
+  empty.style.display = 'none';
+
+  inventory.slice(0, 50).forEach(batch => {
+    const productName  = Utils.getProductName(batch.productId);
+    const supplierName = Utils.getSupplierName(batch.supplierId);
+    const avgCost      = DB.getAvgCost(batch.productId);
+    const isActive     = batch.quantity > 0;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="text-small text-muted">${Utils.formatDate(batch.dateReceived)}</td>
+      <td><strong>${Utils.escape(productName)}</strong>${batch.notes ? `<div class="text-small text-muted">${Utils.escape(batch.notes)}</div>` : ''}</td>
+      <td>${Utils.escape(supplierName)}</td>
+      <td>
+        ${isActive
+          ? `<span class="badge badge--green">${batch.quantity}</span>${batch.receivedQty && batch.receivedQty !== batch.quantity ? `<span class="text-muted text-small"> /${batch.receivedQty}</span>` : ''}`
+          : `<span class="badge badge--slate">depleted</span>`}
+      </td>
+      <td>${Utils.formatCurrency(batch.costPrice)}</td>
+      <td class="text-small text-muted">${avgCost > 0 ? Utils.formatCurrency(avgCost) : '—'}</td>
+      <td class="text-small">${Utils.escape(batch.receivedBy || '—')}</td>
+      <td>
+        <button class="btn btn--danger btn--sm btn--icon" data-id="${batch.id}" title="Delete batch">🗑</button>
+      </td>`;
+    tr.querySelector('[data-id]').addEventListener('click', e => {
+      const id = e.currentTarget.dataset.id;
+      if (!Utils.confirm('Delete this batch? This cannot be undone.')) return;
+      DB.delete('inventory', id);
+      Utils.showToast('Batch deleted.', 'warning');
+      renderHistory();
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
