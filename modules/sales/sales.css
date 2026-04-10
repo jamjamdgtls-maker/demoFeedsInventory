@@ -1,0 +1,64 @@
+/* sales.css */
+
+.profit-positive { color: var(--green-600); font-weight: 700; }
+.profit-negative { color: var(--red-600);   font-weight: 700; }
+.profit-zero     { color: var(--slate-400); }
+
+.daily-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 14px;
+}
+.daily-stat {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.daily-stat__label {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--slate-500);
+  margin-bottom: 6px;
+}
+.daily-stat__value {
+  font-family: var(--font-head);
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--slate-900);
+}
+.daily-stat--green .daily-stat__value { color: var(--green-600); }
+.daily-stat--amber .daily-stat__value { color: var(--amber-600); }
+
+/* Sale detail in modal */
+.sale-detail-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: .875rem;
+}
+.sale-detail-item:last-of-type { border-bottom: none; }
+.sale-detail-item__name { font-weight: 600; color: var(--slate-900); margin-bottom: 3px; }
+.sale-detail-item__meta { font-size: .78rem; color: var(--slate-500); }
+.sale-detail-item__amounts {
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.sale-detail-item__amounts span { font-size: .8rem; }
+
+.sale-totals-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 0;
+  font-size: .875rem;
+  border-bottom: 1px solid var(--border);
+}
+.sale-totals-row:last-child { border-bottom: none; }
+.sale-totals-row--total {
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 800;
+}

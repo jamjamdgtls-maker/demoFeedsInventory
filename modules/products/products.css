@@ -1,0 +1,15 @@
+/* products.css */
+
+.supplier-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.supplier-chip {
+  background: var(--green-100);
+  color: var(--green-700);
+  border-radius: 99px;
+  padding: 2px 9px;
+  font-size: .72rem;
+  font-weight: 600;
+}
